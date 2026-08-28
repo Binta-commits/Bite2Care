@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum AntivenomStatus {
+  IN_STOCK
+  LOW
+  OUT_OF_STOCK
+}
+
+model Case {
+  id                     String                 @id @default(uuid())
+  location               String?
+  biteTime               DateTime?
+  suspectedSnake         String?
+  patientAge             Int?
+  patientSex             String?
+  pregnancyStatus        String?
+  facilityId             String?
+  transportProviderId    String?
+  state                  String?
+  channel                String?                @default("WEB")
+  vialsAdministered      Int?
+  clinicalOutcome        String?
+  outcomeNotes           String?
+  cscFeedbackSent        Boolean                @default(false)
+  escalationReason       String?
+  createdAt              DateTime               @default(now())
+  clinicalAssessments    ClinicalAssessment[]
+}
+
+model ClinicalAssessment {
+  id                String   @id @default(uuid())
+  case              Case     @relation(fields: [caseId], references: [id])
+  caseId            String
+  rawInputs         String
+  calculatedOutputs String
+  createdAt         DateTime @default(now())
+}
+
+model FacilityReadiness {
+  id             String          @id @default(uuid())
+  facilityId     String          @unique
+  facility       Facility        @relation(fields: [facilityId], references: [id])
+  antivenomStatus AntivenomStatus
+  quantity       Int
+  lastUpdated    DateTime        @default(now())
+}
+
+model Facility {
+  id               String             @id @default(uuid())
+  name             String
+  capabilityLevel  Int                @default(1)
+  hasIcuHdu        Boolean            @default(false)
+  canDo20WBCT      Boolean            @default(false)
+  latitude         Float?
+  longitude        Float?
+  facilityReadiness FacilityReadiness?
+}
+
+model TransportProvider {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String?
+  available  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
