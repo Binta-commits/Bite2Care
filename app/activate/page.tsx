@@ -1,8 +1,51 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+// Regional country configurations for scalable localization
+const COUNTRY_CONFIGS: Record<string, { label: string; placeholder: string }> = {
+  Nigeria: {
+    label: "State & LGA / Community",
+    placeholder: "e.g. Keffi Ward 3, Nasarawa State",
+  },
+  Kenya: {
+    label: "County & Sub-County / Ward",
+    placeholder: "e.g. Kitui County, Mwingi Central",
+  },
+  Ghana: {
+    label: "Region & District",
+    placeholder: "e.g. Ashanti Region, Sekyere Central",
+  },
+  Zambia: {
+    label: "Province & District",
+    placeholder: "e.g. Eastern Province, Chipata District",
+  },
+  India: {
+    label: "State & District / Taluk",
+    placeholder: "e.g. Tamil Nadu, Salem District",
+  },
+};
+
+// Curated regional snake species list for rapid frontline identification
+const SNAKE_SPECIES_OPTIONS = [
+  "Unknown / Not Identified",
+  "West African Carpet Viper (Echis ocellatus)",
+  "Black-necked Spitting Cobra (Naja nigricollis)",
+  "Puff Adder (Bitis arietans)",
+  "Black Mamba (Dendroaspis polylepis)",
+  "Green Mamba (Dendroaspis viridis / angusticeps)",
+  "Saw-scaled Viper (Echis carinatus)",
+  "Russell's Viper (Daboia russelii)",
+  "Indian Spectacled Cobra (Naja naja)",
+  "Common Krait (Bungarus caeruleus)",
+  "Boomslang (Dispholidus typus)",
+  "Gaboon Viper (Bitis gabonica)",
+  "Forest Cobra (Naja melanoleuca)",
+  "Other / Unidentified Viper",
+  "Other / Unidentified Elapid",
+];
 
 export default function ActivatePage() {
   const router = useRouter();
@@ -10,15 +53,17 @@ export default function ActivatePage() {
 
   // Web Form State
   const [form, setForm] = useState({
+    country: "Nigeria",
     location: "",
     biteTime: new Date().toISOString().slice(0, 16),
-    suspectedSnake: "",
+    suspectedSnake: "Unknown / Not Identified",
     patientAge: "",
     patientSex: "male",
-    pregnancyStatus: "unknown",
+    pregnancyStatus: "N/A",
   });
 
-  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false); // isSubmitting state
   const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
   const [createdChannel, setCreatedChannel] = useState<string>("WEB");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,29 +77,112 @@ export default function ActivatePage() {
   const [ussdLoading, setUssdLoading] = useState(false);
   const [ussdIsEnd, setUssdIsEnd] = useState(false);
 
+  // Handle Web input changes with conditional pregnancy logic
   const handleWebChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "patientSex") {
+      if (value === "male") {
+        setForm((prev) => ({
+          ...prev,
+          patientSex: value,
+          pregnancyStatus: "N/A",
+        }));
+      } else if (value === "female") {
+        setForm((prev) => ({
+          ...prev,
+          patientSex: value,
+          pregnancyStatus:
+            prev.pregnancyStatus === "N/A" ? "unknown" : prev.pregnancyStatus,
+        }));
+      } else {
+        setForm((prev) => ({
+          ...prev,
+          patientSex: value,
+        }));
+      }
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
+
+    // Clear field-level error on user modification
+    if (errors[name]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
+  };
+
+  // Client-side form validation
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (!form.country) {
+      newErrors.country = "Country selection is required.";
+    }
+
+    if (!form.location.trim()) {
+      const fieldName =
+        COUNTRY_CONFIGS[form.country]?.label || "Incident Location";
+      newErrors.location = `${fieldName} is required.`;
+    }
+
+    if (!form.biteTime) {
+      newErrors.biteTime = "Estimated bite date and time is required.";
+    }
+
+    if (
+      !form.patientAge ||
+      isNaN(Number(form.patientAge)) ||
+      Number(form.patientAge) < 0 ||
+      Number(form.patientAge) > 120
+    ) {
+      newErrors.patientAge = "Patient age is required (0 to 120 years).";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const submitWeb = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMessage(null);
+
+    // Strict client validation before submission
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
     setCreatedCaseId(null);
 
     try {
+      const formattedLocation = `[${form.country}] ${form.location.trim()}`;
+      const payload = {
+        location: formattedLocation,
+        biteTime: form.biteTime,
+        suspectedSnake: form.suspectedSnake.trim() || "Unknown / Not Identified",
+        patientAge: Number(form.patientAge),
+        patientSex: form.patientSex,
+        pregnancyStatus: form.patientSex === "male" ? "N/A" : form.pregnancyStatus,
+        channel: "WEB",
+      };
+
       const res = await fetch("/api/cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, channel: "WEB" }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
+
       if (json.success && json.id) {
         setCreatedCaseId(json.id);
         setCreatedChannel("WEB");
+        setErrors({});
       } else {
         setErrorMessage(json.error || "Failed to create case.");
       }
@@ -74,11 +202,16 @@ export default function ActivatePage() {
 
     try {
       // If it's a direct *999*...# code
-      const isDirect = ussdInput.startsWith("*") && ussdInput.endsWith("#") && ussdInput.split("*").length > 2;
+      const isDirect =
+        ussdInput.startsWith("*") &&
+        ussdInput.endsWith("#") &&
+        ussdInput.split("*").length > 2;
 
       let payload: any = { ussdString: ussdInput };
       if (!isDirect) {
-        const nextText = ussdSessionText ? `${ussdSessionText}*${ussdInput}` : ussdInput;
+        const nextText = ussdSessionText
+          ? `${ussdSessionText}*${ussdInput}`
+          : ussdInput;
         payload = { text: nextText };
       }
 
@@ -99,7 +232,9 @@ export default function ActivatePage() {
           }
         } else {
           setUssdIsEnd(false);
-          setUssdSessionText((prev) => (prev ? `${prev}*${ussdInput}` : ussdInput));
+          setUssdSessionText((prev) =>
+            prev ? `${prev}*${ussdInput}` : ussdInput
+          );
           setUssdInput("");
         }
       } else {
@@ -117,9 +252,14 @@ export default function ActivatePage() {
   const resetUssd = () => {
     setUssdSessionText("");
     setUssdInput("*999*Keffi Ward 3*28*M*VIPER#");
-    setUssdScreen("Dial *999# for interactive menu or enter quick string e.g. *999*LOCATION*AGE*SEX*SNAKE#");
+    setUssdScreen(
+      "Dial *999# for interactive menu or enter quick string e.g. *999*LOCATION*AGE*SEX*SNAKE#"
+    );
     setUssdIsEnd(false);
   };
+
+  const activeCountryConfig =
+    COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
 
   return (
     <div className="max-w-2xl mx-auto px-4">
@@ -141,7 +281,7 @@ export default function ActivatePage() {
             Activate Emergency Case
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Initiate snakebite emergency dispatch via Web Intake or Frontline USSD/Feature Phone channel.
+            Initiate snakebite emergency dispatch via Web Intake (Remote Dispatcher) or Frontline USSD channel.
           </p>
 
           {/* Channel Tabs */}
@@ -227,26 +367,71 @@ export default function ActivatePage() {
 
         {/* TAB 1: WEB FORM */}
         {activeTab === "web" && (
-          <form onSubmit={submitWeb} className="space-y-5">
+          <form onSubmit={submitWeb} noValidate className="space-y-5">
+            {/* Context Notice for Remote Human Dispatcher */}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-600 flex items-center gap-2">
+              <span className="text-brand-teal-800 font-bold">ℹ️ Dispatcher Mode:</span>
+              <span>Manual caller location reporting (device GPS is deliberately disabled).</span>
+            </div>
+
+            {/* Country Selection */}
+            <div>
+              <label
+                htmlFor="country"
+                className="block text-sm font-medium text-slate-900 mb-1"
+              >
+                Operational Country <span className="text-red-500">*</span>
+              </label>
+              <select
+                id="country"
+                name="country"
+                value={form.country}
+                onChange={handleWebChange}
+                className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                  errors.country ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                }`}
+              >
+                <option value="Nigeria">Nigeria</option>
+                <option value="Kenya">Kenya</option>
+                <option value="Ghana">Ghana</option>
+                <option value="Zambia">Zambia</option>
+                <option value="India">India</option>
+              </select>
+              {errors.country && (
+                <p className="mt-1 text-xs text-red-600 font-semibold">
+                  {errors.country}
+                </p>
+              )}
+            </div>
+
+            {/* Dynamic Specific Location Field */}
             <div>
               <label
                 htmlFor="location"
                 className="block text-sm font-medium text-slate-900 mb-1"
               >
-                Incident Location / Ward <span className="text-red-500">*</span>
+                {activeCountryConfig.label} <span className="text-red-500">*</span>
               </label>
               <input
                 id="location"
                 name="location"
                 type="text"
                 required
-                placeholder="e.g. Keffi Ward 3, Nasarawa State"
+                placeholder={activeCountryConfig.placeholder}
                 value={form.location}
                 onChange={handleWebChange}
-                className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm"
+                className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                  errors.location ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                }`}
               />
+              {errors.location && (
+                <p className="mt-1 text-xs text-red-600 font-semibold">
+                  {errors.location}
+                </p>
+              )}
             </div>
 
+            {/* Estimated Bite Time */}
             <div>
               <label
                 htmlFor="biteTime"
@@ -261,28 +446,46 @@ export default function ActivatePage() {
                 required
                 value={form.biteTime}
                 onChange={handleWebChange}
-                className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm"
+                className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                  errors.biteTime ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                }`}
               />
+              {errors.biteTime && (
+                <p className="mt-1 text-xs text-red-600 font-semibold">
+                  {errors.biteTime}
+                </p>
+              )}
             </div>
 
+            {/* Snake Species Searchable Autocomplete & Selection */}
             <div>
               <label
                 htmlFor="suspectedSnake"
                 className="block text-sm font-medium text-slate-900 mb-1"
               >
-                Suspected Snake Species (if identified)
+                Suspected Snake Species (Searchable Autocomplete)
               </label>
               <input
                 id="suspectedSnake"
-                type="text"
                 name="suspectedSnake"
-                placeholder="e.g. Carpet Viper (Echis ocellatus), Naja nigricollis, Unknown"
+                type="text"
+                list="snake-species-list"
+                placeholder="Type to search species or pick 'Unknown / Not Identified'"
                 value={form.suspectedSnake}
                 onChange={handleWebChange}
                 className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm"
               />
+              <datalist id="snake-species-list">
+                {SNAKE_SPECIES_OPTIONS.map((species) => (
+                  <option key={species} value={species} />
+                ))}
+              </datalist>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Defaults to &ldquo;Unknown / Not Identified&rdquo; if caller is unsure.
+              </p>
             </div>
 
+            {/* Patient Demographics & Conditional Pregnancy */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label
@@ -301,8 +504,15 @@ export default function ActivatePage() {
                   placeholder="Years"
                   value={form.patientAge}
                   onChange={handleWebChange}
-                  className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm"
+                  className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                    errors.patientAge ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                  }`}
                 />
+                {errors.patientAge && (
+                  <p className="mt-1 text-xs text-red-600 font-semibold">
+                    {errors.patientAge}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -328,7 +538,9 @@ export default function ActivatePage() {
               <div>
                 <label
                   htmlFor="pregnancyStatus"
-                  className="block text-sm font-medium text-slate-900 mb-1"
+                  className={`block text-sm font-medium mb-1 ${
+                    form.patientSex === "male" ? "text-slate-400" : "text-slate-900"
+                  }`}
                 >
                   Pregnancy Status
                 </label>
@@ -336,24 +548,44 @@ export default function ActivatePage() {
                   id="pregnancyStatus"
                   name="pregnancyStatus"
                   value={form.pregnancyStatus}
+                  disabled={form.patientSex === "male"}
                   onChange={handleWebChange}
-                  className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm"
+                  className={`w-full border rounded-md p-3 text-sm shadow-sm transition-colors ${
+                    form.patientSex === "male"
+                      ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
+                      : "bg-white border-slate-300 text-slate-900 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
+                  }`}
                 >
-                  <option value="unknown">Unknown / N/A</option>
-                  <option value="not_pregnant">Not Pregnant</option>
-                  <option value="pregnant">Pregnant</option>
+                  {form.patientSex === "male" ? (
+                    <option value="N/A">N/A (Male Patient)</option>
+                  ) : (
+                    <>
+                      <option value="unknown">Unknown / Not Assessed</option>
+                      <option value="not_pregnant">Not Pregnant</option>
+                      <option value="pregnant">Pregnant</option>
+                    </>
+                  )}
                 </select>
+                {form.patientSex === "male" && (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Disabled for male patients.
+                  </p>
+                )}
               </div>
             </div>
 
+            {/* Submit Action Button with isSubmitting state & spinner */}
             <div className="pt-2">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/50 text-white font-semibold py-3 rounded-md transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2 text-sm"
+                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-md transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 text-sm"
               >
                 {loading ? (
-                  <span>Submitting Case...</span>
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Processing Case Intake...</span>
+                  </>
                 ) : (
                   <span>Activate Emergency Case (Web Intake)</span>
                 )}
@@ -456,5 +688,3 @@ export default function ActivatePage() {
     </div>
   );
 }
-
-
