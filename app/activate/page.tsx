@@ -4,27 +4,45 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-// Regional country configurations for scalable localization
-const COUNTRY_CONFIGS: Record<string, { label: string; placeholder: string }> = {
+// Regional country configurations for scalable localization and cell tower triangulation simulation
+const COUNTRY_CONFIGS: Record<
+  string,
+  { label: string; placeholder: string; defaultLoc: string; lat: string; lng: string }
+> = {
   Nigeria: {
     label: "State & LGA / Community",
     placeholder: "e.g. Keffi Ward 3, Nasarawa State",
+    defaultLoc: "Keffi Ward 3, Nasarawa State",
+    lat: "8.8471",
+    lng: "7.8932",
   },
   Kenya: {
     label: "County & Sub-County / Ward",
     placeholder: "e.g. Kitui County, Mwingi Central",
+    defaultLoc: "Kitui Central, Kitui County",
+    lat: "-0.4201",
+    lng: "36.9476",
   },
   Ghana: {
     label: "Region & District",
     placeholder: "e.g. Ashanti Region, Sekyere Central",
+    defaultLoc: "Sekyere Central, Ashanti Region",
+    lat: "6.6885",
+    lng: "-1.6244",
   },
   Zambia: {
     label: "Province & District",
     placeholder: "e.g. Eastern Province, Chipata District",
+    defaultLoc: "Chipata Central, Eastern Province",
+    lat: "-13.6384",
+    lng: "32.6508",
   },
   India: {
     label: "State & District / Taluk",
     placeholder: "e.g. Tamil Nadu, Salem District",
+    defaultLoc: "Salem South, Tamil Nadu",
+    lat: "11.6643",
+    lng: "78.1460",
   },
 };
 
@@ -55,12 +73,18 @@ export default function ActivatePage() {
   const [form, setForm] = useState({
     country: "Nigeria",
     location: "",
+    latitude: "",
+    longitude: "",
     biteTime: new Date().toISOString().slice(0, 16),
     suspectedSnake: "Unknown / Not Identified",
     patientAge: "",
     patientSex: "male",
     pregnancyStatus: "N/A",
   });
+
+  // Simulated Telecom Network Geolocation State
+  const [fetchingLoc, setFetchingLoc] = useState(false);
+  const [locCaptured, setLocCaptured] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false); // isSubmitting state
@@ -76,6 +100,33 @@ export default function ActivatePage() {
   );
   const [ussdLoading, setUssdLoading] = useState(false);
   const [ussdIsEnd, setUssdIsEnd] = useState(false);
+
+  // Telecom Cell Tower Triangulation Simulation Handler
+  const fetchCallerNetworkLocation = () => {
+    setFetchingLoc(true);
+    setLocCaptured(false);
+
+    setTimeout(() => {
+      const config = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
+      setForm((prev) => ({
+        ...prev,
+        latitude: config.lat,
+        longitude: config.lng,
+        location: prev.location.trim() ? prev.location : config.defaultLoc,
+      }));
+      setFetchingLoc(false);
+      setLocCaptured(true);
+
+      // Clear location error if active
+      if (errors.location) {
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.location;
+          return next;
+        });
+      }
+    }, 1500);
+  };
 
   // Handle Web input changes with conditional pregnancy logic
   const handleWebChange = (
@@ -161,7 +212,12 @@ export default function ActivatePage() {
     setCreatedCaseId(null);
 
     try {
-      const formattedLocation = `[${form.country}] ${form.location.trim()}`;
+      const gpsString =
+        form.latitude && form.longitude
+          ? ` (GPS: ${form.latitude}, ${form.longitude})`
+          : "";
+      const formattedLocation = `[${form.country}] ${form.location.trim()}${gpsString}`;
+      
       const payload = {
         location: formattedLocation,
         biteTime: form.biteTime,
@@ -368,12 +424,6 @@ export default function ActivatePage() {
         {/* TAB 1: WEB FORM */}
         {activeTab === "web" && (
           <form onSubmit={submitWeb} noValidate className="space-y-5">
-            {/* Context Notice for Remote Human Dispatcher */}
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-md text-xs text-slate-600 flex items-center gap-2">
-              <span className="text-brand-teal-800 font-bold">ℹ️ Dispatcher Mode:</span>
-              <span>Manual caller location reporting (device GPS is deliberately disabled).</span>
-            </div>
-
             {/* Country Selection */}
             <div>
               <label
@@ -404,31 +454,105 @@ export default function ActivatePage() {
               )}
             </div>
 
-            {/* Dynamic Specific Location Field */}
-            <div>
-              <label
-                htmlFor="location"
-                className="block text-sm font-medium text-slate-900 mb-1"
-              >
-                {activeCountryConfig.label} <span className="text-red-500">*</span>
-              </label>
-              <input
-                id="location"
-                name="location"
-                type="text"
-                required
-                placeholder={activeCountryConfig.placeholder}
-                value={form.location}
-                onChange={handleWebChange}
-                className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
-                  errors.location ? "border-red-500 bg-red-50/20" : "border-slate-300"
-                }`}
-              />
-              {errors.location && (
-                <p className="mt-1 text-xs text-red-600 font-semibold">
-                  {errors.location}
-                </p>
-              )}
+            {/* Dynamic Specific Location Section with Telecom Network Triangulation Action */}
+            <div className="p-4 bg-slate-50/70 border border-slate-200 rounded-lg space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <label
+                  htmlFor="location"
+                  className="block text-sm font-bold text-slate-900"
+                >
+                  {activeCountryConfig.label} <span className="text-red-500">*</span>
+                </label>
+
+                {/* Telecom Location Trigger Button */}
+                <button
+                  type="button"
+                  onClick={fetchCallerNetworkLocation}
+                  disabled={fetchingLoc}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer ${
+                    locCaptured
+                      ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                      : fetchingLoc
+                      ? "bg-brand-gold-300 text-slate-900 cursor-wait opacity-90"
+                      : "bg-brand-gold-500 hover:bg-brand-gold-600 text-slate-900"
+                  }`}
+                >
+                  {fetchingLoc ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Pinging Cell Network...</span>
+                    </>
+                  ) : locCaptured ? (
+                    <>
+                      <span>✓ Coordinates Captured (Cell Triangulation)</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>📍 Fetch Caller Network Location (Telecom API)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* State/LGA input (auto-fills on network ping, but dispatcher can still manually edit) */}
+              <div>
+                <input
+                  id="location"
+                  name="location"
+                  type="text"
+                  required
+                  placeholder={activeCountryConfig.placeholder}
+                  value={form.location}
+                  onChange={handleWebChange}
+                  className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                    errors.location ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                  }`}
+                />
+                {errors.location && (
+                  <p className="mt-1 text-xs text-red-600 font-semibold">
+                    {errors.location}
+                  </p>
+                )}
+              </div>
+
+              {/* Auto-filled / Editable Latitude and Longitude Coordinates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label
+                    htmlFor="latitude"
+                    className="block text-xs font-medium text-slate-700 mb-1"
+                  >
+                    Victim Latitude (Cell Triangulated)
+                  </label>
+                  <input
+                    id="latitude"
+                    name="latitude"
+                    type="text"
+                    placeholder="e.g. 8.8471"
+                    value={form.latitude}
+                    onChange={handleWebChange}
+                    className="w-full border border-slate-300 rounded-md p-2.5 font-mono text-xs bg-white text-slate-900 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none shadow-inner"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="longitude"
+                    className="block text-xs font-medium text-slate-700 mb-1"
+                  >
+                    Victim Longitude (Cell Triangulated)
+                  </label>
+                  <input
+                    id="longitude"
+                    name="longitude"
+                    type="text"
+                    placeholder="e.g. 7.8932"
+                    value={form.longitude}
+                    onChange={handleWebChange}
+                    className="w-full border border-slate-300 rounded-md p-2.5 font-mono text-xs bg-white text-slate-900 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none shadow-inner"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Estimated Bite Time */}
@@ -647,7 +771,7 @@ export default function ActivatePage() {
               </div>
             </form>
 
-            {/* Quick Demo Pre-fill Buttons */}
+            {/* Quick Demo Presets */}
             <div className="pt-2 border-t border-slate-100">
               <div className="text-[11px] font-bold text-slate-500 uppercase mb-2">
                 Presentation Quick Demo Presets:
