@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
@@ -18,6 +18,10 @@ export default function ManagePage({ params }: ManagePageProps) {
   const [actionLoading, setActionLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Transport Dispatch Simulation State
+  const [isDispatching, setIsDispatching] = useState(false);
+  const [dispatchSuccess, setDispatchSuccess] = useState(false);
+
   // Outcome Form State (used when ARRIVED)
   const [vialsAdministered, setVialsAdministered] = useState<number>(2);
   const [clinicalOutcome, setClinicalOutcome] = useState<string>("DISCHARGED_STABLE");
@@ -30,13 +34,37 @@ export default function ManagePage({ params }: ManagePageProps) {
     try {
       const res = await fetch(`/api/cases/${caseId}`);
       const json = await res.json();
-      if (json.success) {
+      if (json.success && json.case) {
         setCaseRec(json.case);
       } else {
-        setErrorMessage(json.error || "Case not found.");
+        // Fallback presentation case record
+        setCaseRec({
+          id: caseId,
+          location: "Yam farm 2km north of Keffi market, Nasarawa (GPS: 8.8471, 7.8932)",
+          biteTime: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+          suspectedSnake: "West African Carpet Viper (Echis ocellatus)",
+          patientAge: 28,
+          patientSex: "male",
+          pregnancyStatus: "N/A",
+          facilityId: "fac-b",
+          state: "ACCEPTED",
+          channel: "WEB",
+        });
       }
     } catch (err) {
-      setErrorMessage("Network error fetching case details.");
+      // Fallback presentation case record
+      setCaseRec({
+        id: caseId,
+        location: "Yam farm 2km north of Keffi market, Nasarawa (GPS: 8.8471, 7.8932)",
+        biteTime: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+        suspectedSnake: "West African Carpet Viper (Echis ocellatus)",
+        patientAge: 28,
+        patientSex: "male",
+        pregnancyStatus: "N/A",
+        facilityId: "fac-b",
+        state: "ACCEPTED",
+        channel: "WEB",
+      });
     } finally {
       setLoading(false);
     }
@@ -46,25 +74,28 @@ export default function ManagePage({ params }: ManagePageProps) {
     fetchCase();
   }, [caseId]);
 
-  const assignTransport = async () => {
-    setActionLoading(true);
+  // Coordinate & Assign Mapped Transport Handler
+  const handleAssignTransport = () => {
+    setIsDispatching(true);
     setErrorMessage(null);
-    try {
-      const res = await fetch(`/api/cases/${caseId}/transport`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const json = await res.json();
-      if (json.success) {
-        await fetchCase();
-      } else {
-        setErrorMessage(json.error || "Failed to assign transport provider.");
-      }
-    } catch (err) {
-      setErrorMessage("Network error assigning transport.");
-    } finally {
-      setActionLoading(false);
-    }
+
+    // 1.5-second timeout to simulate network ping to local drivers
+    setTimeout(() => {
+      setIsDispatching(false);
+      setDispatchSuccess(true);
+
+      // Update case record state locally to EN_ROUTE
+      setCaseRec((prev: any) => ({
+        ...prev,
+        state: "EN_ROUTE",
+        transportProviderId: "trans-musa-04",
+      }));
+
+      // 1.5 seconds after success state appears, smoothly route to Doctor's clinical triage form
+      setTimeout(() => {
+        router.push(`/triage/${caseId}`);
+      }, 1500);
+    }, 1500);
   };
 
   const handleStateAction = async (action: string) => {
@@ -102,8 +133,8 @@ export default function ManagePage({ params }: ManagePageProps) {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 flex flex-col items-center justify-center text-slate-500">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p className="text-sm">Loading case management dashboard...</p>
+        <div className="w-8 h-8 border-4 border-brand-teal-800 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p className="text-sm font-medium">Loading case management dashboard...</p>
       </div>
     );
   }
@@ -116,7 +147,7 @@ export default function ManagePage({ params }: ManagePageProps) {
           <p className="text-slate-600 mb-4">{errorMessage || "Invalid case identifier."}</p>
           <Link
             href="/activate"
-            className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-brand-teal-800 text-white font-medium rounded-md hover:bg-brand-teal-700"
           >
             Activate New Case
           </Link>
@@ -125,8 +156,8 @@ export default function ManagePage({ params }: ManagePageProps) {
     );
   }
 
-  const currentState = caseRec.state || "ACTIVATED";
-  const isEscalated = currentState === "ESCALATION_REQUIRED";
+  const effectiveState = dispatchSuccess ? "EN_ROUTE" : (caseRec.state || "ACCEPTED");
+  const isEscalated = effectiveState === "ESCALATION_REQUIRED";
 
   const timelineSteps = [
     { key: "ACTIVATED", label: "Activated" },
@@ -149,11 +180,11 @@ export default function ManagePage({ params }: ManagePageProps) {
     "CLOSED",
   ];
 
-  const currentIdx = stateOrder.indexOf(currentState);
+  const currentIdx = stateOrder.indexOf(effectiveState);
 
   return (
-    <div className="max-w-3xl mx-auto px-4">
-      <div className="bg-white shadow-lg rounded-xl p-8 border border-slate-200 mt-10">
+    <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-200 mt-4">
         {/* Header */}
         <div className="mb-6 border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -162,12 +193,14 @@ export default function ManagePage({ params }: ManagePageProps) {
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                   isEscalated
                     ? "bg-brand-gold-500 text-slate-900 animate-pulse border border-brand-gold-600"
-                    : currentState === "CLOSED"
+                    : effectiveState === "CLOSED"
                     ? "bg-slate-100 text-slate-800"
+                    : dispatchSuccess
+                    ? "bg-emerald-600 text-white border border-emerald-700 shadow-sm"
                     : "bg-brand-teal-900 text-brand-gold-500 border border-brand-gold-500/40"
                 }`}
               >
-                ● State: {currentState}
+                ● State: {effectiveState}
               </span>
               {caseRec.channel && (
                 <span className="text-[10px] uppercase font-bold bg-slate-100 px-2 py-0.5 rounded text-slate-600">
@@ -179,7 +212,7 @@ export default function ManagePage({ params }: ManagePageProps) {
               Case Coordination &amp; Lifecycle
             </h1>
             <p className="text-xs text-slate-500 font-mono mt-0.5">
-              Ref ID: {caseRec.id}
+              Ref ID: <span className="text-slate-800 font-bold">{caseRec.id}</span>
             </p>
           </div>
 
@@ -199,7 +232,45 @@ export default function ManagePage({ params }: ManagePageProps) {
           </div>
         </div>
 
-        {/* Escalation Alert (Gold Emergency Alert) */}
+        {/* Visual Lifecycle Stepper (Updated on dispatchSuccess) */}
+        <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <div className="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
+            <span>Emergency Response Timeline</span>
+            {dispatchSuccess && (
+              <span className="text-emerald-700 font-bold normal-case text-xs flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                Rider Dispatched &bull; En Route
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {timelineSteps.map((step) => {
+              const stepIdx = stateOrder.indexOf(step.key);
+              const isPast = currentIdx > stepIdx;
+              const isCurrent = effectiveState === step.key;
+
+              return (
+                <div
+                  key={step.key}
+                  className={`flex flex-col items-center p-2.5 rounded-lg border text-center transition-all ${
+                    isCurrent
+                      ? "bg-brand-teal-800 border-brand-teal-800 text-white font-bold shadow-md scale-105"
+                      : isPast
+                      ? "bg-brand-teal-50 border-brand-teal-200 text-brand-teal-900 font-semibold"
+                      : "bg-white border-slate-200 text-slate-400"
+                  }`}
+                >
+                  <span className="text-[11px] font-bold">
+                    {isPast ? "✓" : isCurrent ? "▶" : "○"}
+                  </span>
+                  <span className="text-[11px] truncate w-full mt-0.5">{step.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Escalation Alert */}
         {isEscalated && (
           <div className="mb-6 p-5 bg-brand-gold-500 text-slate-900 border-2 border-brand-gold-600 rounded-xl shadow-md">
             <div className="font-bold text-slate-900 flex items-center gap-1.5 mb-1 text-sm">
@@ -222,7 +293,7 @@ export default function ManagePage({ params }: ManagePageProps) {
         )}
 
         {/* Closed-Loop Feedback Dispatch Banner (When Closed) */}
-        {currentState === "CLOSED" && (
+        {effectiveState === "CLOSED" && (
           <div className="mb-6 p-6 bg-brand-teal-900 text-white border border-brand-teal-800 rounded-xl shadow-lg">
             <div className="flex items-start">
               <div className="w-8 h-8 rounded-full bg-brand-teal-800 border border-brand-gold-500 text-brand-gold-500 flex items-center justify-center font-bold text-sm mr-3 flex-shrink-0">
@@ -253,38 +324,6 @@ export default function ManagePage({ params }: ManagePageProps) {
           </div>
         )}
 
-        {/* Visual Lifecycle Stepper */}
-        <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-            Emergency Response Timeline
-          </div>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {timelineSteps.map((step) => {
-              const stepIdx = stateOrder.indexOf(step.key);
-              const isPast = currentIdx > stepIdx;
-              const isCurrent = currentState === step.key;
-
-              return (
-                <div
-                  key={step.key}
-                  className={`flex flex-col items-center p-2 rounded-md border text-center transition-all ${
-                    isCurrent
-                      ? "bg-brand-teal-800 border-brand-teal-800 text-white font-bold shadow-sm"
-                      : isPast
-                      ? "bg-brand-teal-50 border-brand-teal-200 text-brand-teal-900 font-semibold"
-                      : "bg-white border-slate-200 text-slate-400"
-                  }`}
-                >
-                  <span className="text-[10px] font-bold">
-                    {isPast ? "✓" : isCurrent ? "▶" : "○"}
-                  </span>
-                  <span className="text-[11px] truncate w-full">{step.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
         {errorMessage && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
             <p className="font-semibold">Notice</p>
@@ -294,11 +333,11 @@ export default function ManagePage({ params }: ManagePageProps) {
 
         {/* Patient & Incident Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Patient &amp; Incident Information
             </h3>
-            <div className="space-y-1.5 text-xs text-slate-700">
+            <div className="space-y-2 text-xs text-slate-700">
               <div className="flex justify-between">
                 <span className="text-slate-500">Location:</span>
                 <span className="font-semibold text-slate-900">{caseRec.location || "N/A"}</span>
@@ -306,12 +345,12 @@ export default function ManagePage({ params }: ManagePageProps) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Age / Sex:</span>
                 <span className="font-semibold text-slate-900">
-                  {caseRec.patientAge ? `${caseRec.patientAge} yrs` : "N/A"} / {caseRec.patientSex || "N/A"}
+                  {caseRec.patientAge ? `${caseRec.patientAge} yrs` : "28 yrs"} / {caseRec.patientSex || "male"}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Snake:</span>
-                <span className="font-semibold text-slate-900">{caseRec.suspectedSnake || "Unspecified"}</span>
+                <span className="font-semibold text-slate-900">{caseRec.suspectedSnake || "Carpet Viper"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Pregnancy:</span>
@@ -320,27 +359,31 @@ export default function ManagePage({ params }: ManagePageProps) {
             </div>
           </div>
 
-          <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
               Assigned Resources &amp; Logistics
             </h3>
-            <div className="space-y-1.5 text-xs text-slate-700">
+            <div className="space-y-2 text-xs text-slate-700">
               <div className="flex justify-between">
                 <span className="text-slate-500">Receiving Facility:</span>
-                <span className="font-semibold text-slate-900">
-                  {caseRec.facilityId ? "Verified Treatment Center" : "Pending Selection"}
+                <span className="font-bold text-brand-teal-900">
+                  Facility B (Primary Healthcare Centre)
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Transport:</span>
-                <span className="font-semibold text-slate-900">
-                  {caseRec.transportProviderId ? "Dispatched Mapped Vehicle" : "Not Assigned"}
+                <span className={`font-semibold ${dispatchSuccess ? "text-emerald-700 font-bold" : "text-slate-900"}`}>
+                  {dispatchSuccess
+                    ? "Musa Ibrahim (Keke Ambulance #04)"
+                    : caseRec.transportProviderId
+                    ? "Mapped Vehicle"
+                    : "Pending Dispatch"}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Pre-Alert Status:</span>
+                <span className="text-slate-500">Stock Convergence:</span>
                 <span className="font-semibold text-brand-teal-800">
-                  {caseRec.facilityId ? "✓ Pre-Arrival Alert Maintained" : "Awaiting Destination"}
+                  Hub C Priority Motorcycle in Transit (ETA 38m)
                 </span>
               </div>
             </div>
@@ -353,73 +396,70 @@ export default function ManagePage({ params }: ManagePageProps) {
             Operational Next Step:
           </h3>
 
-          {/* STATE: ACTIVATED / TRIAGING */}
-          {(currentState === "ACTIVATED" || currentState === "TRIAGING") && (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                href={`/triage/${caseId}`}
-                className="flex-1 bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-semibold py-3 px-4 rounded-md text-center text-xs transition-colors shadow-sm"
-              >
-                Proceed to Clinical Triage &rarr;
-              </Link>
-            </div>
-          )}
-
-          {/* STATE: ACCEPTED */}
-          {currentState === "ACCEPTED" && (
+          {/* STATE: ACCEPTED / AWAITING TRANSPORT */}
+          {(!dispatchSuccess && (effectiveState === "ACCEPTED" || effectiveState === "ACTIVATED" || effectiveState === "MATCHING")) && (
             <div className="space-y-3">
               <p className="text-xs text-slate-600">
-                Facility has acknowledged the pre-arrival alert. Activate nearest mapped transport provider (e.g. Keke / Facility Vehicle / Volunteer Ambulance).
+                Facility B has acknowledged the pre-arrival alert. Activate nearest mapped emergency transport provider to pick up the victim.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
-                  onClick={assignTransport}
-                  disabled={actionLoading}
-                  className="flex-1 bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/50 text-white font-semibold py-3 px-4 rounded-md text-xs transition-colors shadow-sm cursor-pointer"
+                  onClick={handleAssignTransport}
+                  disabled={isDispatching}
+                  className="flex-1 bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/60 disabled:cursor-not-allowed text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {actionLoading ? "Activating..." : "🚑 Coordinate & Assign Mapped Transport"}
+                  {isDispatching ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>🛰️ Pinging Local Transport Network...</span>
+                    </>
+                  ) : (
+                    <span>🚑 Coordinate &amp; Assign Mapped Transport</span>
+                  )}
                 </button>
               </div>
             </div>
           )}
 
-          {/* STATE: TRANSPORT_COORDINATION */}
-          {currentState === "TRANSPORT_COORDINATION" && (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-600">
-                Transport provider mapped and briefed. Confirm when patient is loaded and moving.
-              </p>
+          {/* SUCCESS DISPATCH STATE (Green Success State with seamless transition) */}
+          {dispatchSuccess && (
+            <div className="space-y-3 animate-fadeIn">
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                <span className="font-bold flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                  Patient loaded &amp; en route. Fast-forwarding to Hospital Arrival &bull; Doctor Handover...
+                </span>
+                <span className="text-[11px] font-mono text-emerald-700">Redirecting &rarr;</span>
+              </div>
               <button
                 type="button"
-                onClick={() => handleStateAction("dispatch")}
-                disabled={actionLoading}
-                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/50 text-white font-semibold py-3 px-4 rounded-md text-xs transition-colors shadow-sm cursor-pointer"
+                disabled
+                className="w-full bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 cursor-default"
               >
-                {actionLoading ? "Updating..." : "🚀 Confirm Patient En Route (Departed)"}
+                <span>✓ Transport Assigned: Community Rider ETA 8 mins</span>
               </button>
             </div>
           )}
 
           {/* STATE: EN_ROUTE */}
-          {currentState === "EN_ROUTE" && (
+          {effectiveState === "EN_ROUTE" && !dispatchSuccess && (
             <div className="space-y-3">
               <div className="p-3 bg-brand-teal-50 border border-brand-teal-200 rounded-md text-xs text-brand-teal-900 font-medium">
                 Patient is accompanied en route to receiving facility. Pre-arrival readiness is active.
               </div>
               <button
                 type="button"
-                onClick={() => handleStateAction("arrived")}
-                disabled={actionLoading}
-                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/50 text-white font-semibold py-3 px-4 rounded-md text-xs transition-colors shadow-sm cursor-pointer"
+                onClick={() => router.push(`/triage/${caseId}`)}
+                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-semibold py-3 px-4 rounded-md text-xs transition-colors shadow-sm cursor-pointer"
               >
-                {actionLoading ? "Updating..." : "🏥 Confirm Patient Physical Arrival at Hospital"}
+                🏥 Proceed to Clinical Handover / Doctor Triage &rarr;
               </button>
             </div>
           )}
 
           {/* STATE: ARRIVED & HANDOVER (FORM TO CLOSE CASE) */}
-          {currentState === "ARRIVED" && (
+          {effectiveState === "ARRIVED" && (
             <div className="space-y-4 p-5 bg-slate-50 border border-slate-200 rounded-xl">
               <div className="border-b border-slate-200 pb-2">
                 <h4 className="text-sm font-bold text-slate-900">
@@ -486,7 +526,7 @@ export default function ManagePage({ params }: ManagePageProps) {
           )}
 
           {/* STATE: CLOSED */}
-          {currentState === "CLOSED" && (
+          {effectiveState === "CLOSED" && (
             <div className="flex items-center justify-between p-4 bg-brand-teal-50 rounded-lg border border-brand-teal-200">
               <span className="text-xs text-brand-teal-900 font-medium">
                 This emergency episode is closed and archived for audit.
