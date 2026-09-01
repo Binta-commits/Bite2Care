@@ -101,6 +101,23 @@ export default function TriagePage({ params }: TriagePageProps) {
     }
   };
 
+  const [demoData, setDemoData] = useState({
+    location: "Yam farm 2km north of Keffi market",
+    country: "Nigeria",
+    age: "28",
+    sex: "male",
+    snake: "West African Carpet Viper (Echis ocellatus)",
+  });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bite2care_demo_data");
+      if (saved) {
+        setDemoData(JSON.parse(saved));
+      }
+    } catch (e) {}
+  }, []);
+
   return (
     <div className="max-w-3xl mx-auto px-4">
       <div className="bg-white shadow-lg rounded-xl p-8 border border-slate-200 mt-10">
@@ -127,6 +144,22 @@ export default function TriagePage({ params }: TriagePageProps) {
           <div className="bg-brand-teal-900 text-white font-bold p-3.5 rounded-xl mb-4 border border-brand-teal-800 shadow-md flex items-center gap-2.5 text-sm">
             <span className="text-base">👨‍⚕️</span>
             <span>DOCTOR&apos;S PORTAL: Patient Arrived at Facility B (Primary Healthcare Centre)</span>
+          </div>
+
+          {/* Patient Clinical Intake Summary Bar */}
+          <div className="mb-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-700">
+            <div>
+              <span className="text-slate-500 block text-[11px]">Victim Demographics:</span>
+              <span className="font-bold text-slate-900">{demoData.age} yrs &bull; {demoData.sex.toUpperCase()}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[11px]">Incident Location:</span>
+              <span className="font-bold text-slate-900">{demoData.location}, {demoData.country}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[11px]">Suspected Snake Species:</span>
+              <span className="font-bold text-brand-teal-900">{demoData.snake}</span>
+            </div>
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">

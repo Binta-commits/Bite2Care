@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -241,6 +241,21 @@ export default function ActivatePage() {
       });
       const json = await res.json();
 
+      // Save to localStorage for demo persistence across all pages
+      try {
+        const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
+        localStorage.setItem(
+          "bite2care_demo_data",
+          JSON.stringify({
+            location: form.location.trim() || activeCountryConfig.defaultLoc,
+            country: form.country,
+            age: form.patientAge || "28",
+            sex: form.patientSex || "male",
+            snake: form.suspectedSnake || "West African Carpet Viper (Echis ocellatus)",
+          })
+        );
+      } catch (err) {}
+
       if (json.success && json.id) {
         setCreatedCaseId(json.id);
         setCreatedChannel("WEB");
@@ -253,6 +268,21 @@ export default function ActivatePage() {
         setErrors({});
       }
     } catch (err) {
+      // Save to localStorage on fallback as well
+      try {
+        const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
+        localStorage.setItem(
+          "bite2care_demo_data",
+          JSON.stringify({
+            location: form.location.trim() || activeCountryConfig.defaultLoc,
+            country: form.country,
+            age: form.patientAge || "28",
+            sex: form.patientSex || "male",
+            snake: form.suspectedSnake || "West African Carpet Viper (Echis ocellatus)",
+          })
+        );
+      } catch (e) {}
+
       // Seamless presentation fallback to prevent blocking
       const fallbackId = `CASE-${Date.now().toString(36).toUpperCase()}`;
       setCreatedCaseId(fallbackId);

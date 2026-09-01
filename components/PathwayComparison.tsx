@@ -25,6 +25,21 @@ export default function PathwayComparison({
 
   const handleConfirmMobilization = () => {
     setIsMobilizing(true);
+    try {
+      const existing = localStorage.getItem("bite2care_demo_data");
+      const current = existing ? JSON.parse(existing) : {};
+      localStorage.setItem(
+        "bite2care_demo_data",
+        JSON.stringify({
+          location: current.location || location,
+          country: current.country || country,
+          age: current.age || "28",
+          sex: current.sex || "male",
+          snake: current.snake || "West African Carpet Viper (Echis ocellatus)",
+        })
+      );
+    } catch (e) {}
+
     setTimeout(() => {
       router.push(`/cases/${caseId}/match`);
     }, 600);

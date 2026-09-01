@@ -115,11 +115,29 @@ export default function MatchPage({ params }: MatchPageProps) {
     }, 800);
   };
 
+  const [demoData, setDemoData] = useState({
+    location: "Yam farm 2km north of Keffi market",
+    country: "Nigeria",
+    age: "28",
+    sex: "male",
+    snake: "West African Carpet Viper (Echis ocellatus)",
+  });
+
+  // Load persisted demo data from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bite2care_demo_data");
+      if (saved) {
+        setDemoData(JSON.parse(saved));
+      }
+    } catch (e) {}
+  }, []);
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
       <div className="bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-200 mt-4">
         {/* Header */}
-        <div className="mb-6 border-b border-slate-100 pb-4">
+        <div className="mb-4 border-b border-slate-100 pb-4">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900">
@@ -142,6 +160,18 @@ export default function MatchPage({ params }: MatchPageProps) {
           <p className="text-sm text-slate-600 mt-1">
             Evaluating verified capability level, real-time antivenom stock, travel safety, and dynamic stock convergence.
           </p>
+        </div>
+
+        {/* Patient Incident Context Bar */}
+        <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between text-xs text-slate-700 gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-slate-900">📍 Incident Site:</span>
+            <span className="font-medium text-slate-800">{demoData.location}, {demoData.country}</span>
+          </div>
+          <div className="flex items-center gap-3 text-slate-600">
+            <span><strong>Victim:</strong> {demoData.age} yrs / {demoData.sex.toLowerCase()}</span>
+            <span><strong>Snake:</strong> {demoData.snake}</span>
+          </div>
         </div>
 
         {/* Success / Accepted Banner */}

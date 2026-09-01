@@ -22,6 +22,24 @@ export default function ManagePage({ params }: ManagePageProps) {
   const [isDispatching, setIsDispatching] = useState(false);
   const [dispatchSuccess, setDispatchSuccess] = useState(false);
 
+  // Dynamic Patient Demo Data State
+  const [demoData, setDemoData] = useState({
+    location: "Yam farm 2km north of Keffi market",
+    country: "Nigeria",
+    age: "28",
+    sex: "male",
+    snake: "West African Carpet Viper (Echis ocellatus)",
+  });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bite2care_demo_data");
+      if (saved) {
+        setDemoData(JSON.parse(saved));
+      }
+    } catch (e) {}
+  }, []);
+
   // Outcome Form State (used when ARRIVED)
   const [vialsAdministered, setVialsAdministered] = useState<number>(2);
   const [clinicalOutcome, setClinicalOutcome] = useState<string>("DISCHARGED_STABLE");
@@ -353,17 +371,17 @@ export default function ManagePage({ params }: ManagePageProps) {
             <div className="space-y-2 text-xs text-slate-700">
               <div className="flex justify-between">
                 <span className="text-slate-500">Location:</span>
-                <span className="font-semibold text-slate-900">{caseRec.location || "N/A"}</span>
+                <span className="font-semibold text-slate-900">{demoData.location}, {demoData.country}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Age / Sex:</span>
                 <span className="font-semibold text-slate-900">
-                  {caseRec.patientAge ? `${caseRec.patientAge} yrs` : "28 yrs"} / {caseRec.patientSex || "male"}
+                  {demoData.age} yrs / {demoData.sex.toLowerCase()}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Snake:</span>
-                <span className="font-semibold text-slate-900">{caseRec.suspectedSnake || "Carpet Viper"}</span>
+                <span className="font-semibold text-slate-900">{demoData.snake}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Pregnancy:</span>
