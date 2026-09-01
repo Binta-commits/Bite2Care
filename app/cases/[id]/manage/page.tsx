@@ -204,7 +204,10 @@ export default function ManagePage({ params }: ManagePageProps) {
         {/* Header */}
         <div className="mb-6 border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900">
+                Emergency Step 3
+              </span>
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
                   isEscalated
@@ -237,13 +240,7 @@ export default function ManagePage({ params }: ManagePageProps) {
               href={`/cases/${caseId}/match`}
               className="px-3 py-1.5 bg-brand-teal-50 hover:bg-brand-teal-100 text-brand-teal-900 rounded text-xs font-semibold transition-colors border border-brand-teal-200"
             >
-              View Matches
-            </Link>
-            <Link
-              href={`/triage/${caseId}`}
-              className="px-3 py-1.5 bg-brand-teal-50 hover:bg-brand-teal-100 text-brand-teal-900 rounded text-xs font-semibold transition-colors border border-brand-teal-200"
-            >
-              Doctor Handover
+              &larr; View Matches
             </Link>
           </div>
         </div>
@@ -451,12 +448,12 @@ export default function ManagePage({ params }: ManagePageProps) {
                 </span>
               </div>
 
-              {/* Primary button to switch to Doctor's View on Triage */}
+              {/* Primary button to switch to Doctor's Portal on Triage */}
               <Link
                 href={`/triage/${caseId}`}
                 className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-bold py-4 px-6 rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer border border-brand-teal-700"
               >
-                <span>🏥 Switch to Facility Dashboard (Doctor View) &rarr;</span>
+                <span>🏥 Switch to Doctor&apos;s Portal &rarr;</span>
               </Link>
             </div>
           )}
@@ -471,7 +468,7 @@ export default function ManagePage({ params }: ManagePageProps) {
                 href={`/triage/${caseId}`}
                 className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer"
               >
-                🏥 Switch to Facility Dashboard (Doctor View) &rarr;
+                🏥 Switch to Doctor&apos;s Portal &rarr;
               </Link>
             </div>
           )}

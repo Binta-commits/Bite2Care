@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
@@ -122,18 +122,18 @@ export default function MatchPage({ params }: MatchPageProps) {
         <div className="mb-6 border-b border-slate-100 pb-4">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-gold-500 text-slate-900">
-                Emergency Step 3
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900">
+                Emergency Step 2
               </span>
               <span className="text-xs text-slate-500 font-medium">
                 Case ID: <span className="font-mono font-bold text-slate-800">{caseId}</span>
               </span>
             </div>
             <Link
-              href={`/triage/${caseId}`}
+              href="/activate"
               className="text-xs text-brand-teal-800 hover:text-brand-teal-700 font-semibold"
             >
-              &larr; Back to Triage
+              &larr; Back to Activation
             </Link>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">

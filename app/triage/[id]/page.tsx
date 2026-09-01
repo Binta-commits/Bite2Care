@@ -109,7 +109,7 @@ export default function TriagePage({ params }: TriagePageProps) {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900">
-                Arrival &amp; Clinical Handover
+                Emergency Step 4: Final Handover
               </span>
               <span className="text-xs text-slate-500 font-medium">
                 Case ID: <span className="font-mono font-bold text-slate-800">{caseId}</span>
@@ -472,7 +472,7 @@ export default function TriagePage({ params }: TriagePageProps) {
                   <span>Authorizing Antivenom Release...</span>
                 </>
               ) : (
-                <span>💉 Authorize Antivenom Release (6 Vials)</span>
+                <span>💉 Authorize Antivenom Release</span>
               )}
             </button>
           </div>
