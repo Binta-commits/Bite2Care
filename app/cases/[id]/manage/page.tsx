@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
@@ -32,10 +32,23 @@ export default function ManagePage({ params }: ManagePageProps) {
   const fetchCase = async () => {
     if (!caseId) return;
     try {
+      const isClosedParam =
+        typeof window !== "undefined" &&
+        window.location.search.includes("closed=true");
+
       const res = await fetch(`/api/cases/${caseId}`);
       const json = await res.json();
       if (json.success && json.case) {
-        setCaseRec(json.case);
+        setCaseRec(
+          isClosedParam
+            ? {
+                ...json.case,
+                state: "CLOSED",
+                vialsAdministered: 6,
+                clinicalOutcome: "DISCHARGED_STABLE",
+              }
+            : json.case
+        );
       } else {
         // Fallback presentation case record
         setCaseRec({
@@ -47,12 +60,18 @@ export default function ManagePage({ params }: ManagePageProps) {
           patientSex: "male",
           pregnancyStatus: "N/A",
           facilityId: "fac-b",
-          state: "ACCEPTED",
+          state: isClosedParam ? "CLOSED" : "ACCEPTED",
+          vialsAdministered: isClosedParam ? 6 : null,
+          clinicalOutcome: isClosedParam ? "DISCHARGED_STABLE" : null,
           channel: "WEB",
         });
       }
     } catch (err) {
       // Fallback presentation case record
+      const isClosedParam =
+        typeof window !== "undefined" &&
+        window.location.search.includes("closed=true");
+
       setCaseRec({
         id: caseId,
         location: "Yam farm 2km north of Keffi market, Nasarawa (GPS: 8.8471, 7.8932)",
@@ -62,7 +81,9 @@ export default function ManagePage({ params }: ManagePageProps) {
         patientSex: "male",
         pregnancyStatus: "N/A",
         facilityId: "fac-b",
-        state: "ACCEPTED",
+        state: isClosedParam ? "CLOSED" : "ACCEPTED",
+        vialsAdministered: isClosedParam ? 6 : null,
+        clinicalOutcome: isClosedParam ? "DISCHARGED_STABLE" : null,
         channel: "WEB",
       });
     } finally {

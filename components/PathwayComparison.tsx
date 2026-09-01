@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -26,7 +26,7 @@ export default function PathwayComparison({
   const handleConfirmMobilization = () => {
     setIsMobilizing(true);
     setTimeout(() => {
-      router.push(`/triage/${caseId}`);
+      router.push(`/cases/${caseId}/match`);
     }, 600);
   };
 

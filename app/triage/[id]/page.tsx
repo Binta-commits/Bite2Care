@@ -137,39 +137,33 @@ export default function TriagePage({ params }: TriagePageProps) {
           </p>
         </div>
 
-        {/* Success / Recommendation Banner */}
+        {/* Success / Authorization Banner */}
         {result && (
-          <div className="mb-8 p-6 bg-brand-teal-900 text-white border border-brand-teal-800 rounded-xl shadow-lg">
+          <div className="mb-8 p-6 bg-brand-teal-900 text-white border border-brand-teal-800 rounded-xl shadow-lg animate-fadeIn">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-full bg-brand-teal-800 border border-brand-gold-500 flex items-center justify-center text-brand-gold-500 font-bold text-sm">
+                <div className="w-8 h-8 rounded-full bg-brand-gold-500 text-slate-900 flex items-center justify-center font-bold text-sm">
                   ✓
                 </div>
               </div>
               <div className="ml-3 flex-1">
                 <h3 className="text-base font-bold text-white">
-                  Triage Assessment Computed Successfully
+                  ANTIVENOM AUTHORIZED: Vials deducted from Facility B inventory.
                 </h3>
                 <div className="mt-2 p-4 bg-brand-teal-800/80 rounded-lg border border-brand-teal-700">
                   <div className="text-[11px] font-bold text-brand-gold-500 uppercase tracking-wider">
-                    Transparent Clinical Recommendation
+                    Clinical Authorization &bull; Inventory Sync
                   </div>
-                  <div className="text-lg font-extrabold text-white mt-0.5">
-                    {result.recommendation}
+                  <div className="text-base font-bold text-white mt-0.5">
+                    6 Vials Released for Immediate Intravenous Infusion &bull; Stock Converged at Facility B
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <Link
-                    href={`/cases/${caseId}/match`}
-                    className="inline-flex items-center justify-center px-5 py-2.5 bg-brand-gold-500 hover:bg-brand-gold-600 text-slate-900 text-sm font-bold rounded-md shadow-sm transition-colors"
+                    href={`/cases/${caseId}/manage?closed=true`}
+                    className="inline-flex items-center justify-center px-5 py-2.5 bg-brand-gold-500 hover:bg-brand-gold-600 text-slate-900 text-sm font-bold rounded-lg shadow-sm transition-colors cursor-pointer"
                   >
-                    Proceed to Facility Matching &rarr;
-                  </Link>
-                  <Link
-                    href={`/cases/${caseId}/manage`}
-                    className="inline-flex items-center justify-center px-4 py-2.5 bg-brand-teal-800 border border-brand-teal-700 text-slate-200 hover:bg-brand-teal-700 text-sm font-medium rounded-md shadow-sm transition-colors"
-                  >
-                    View Case Dashboard
+                    ✓ Mark Patient as Stable &amp; Close Case &rarr;
                   </Link>
                 </div>
               </div>
@@ -470,15 +464,15 @@ export default function TriagePage({ params }: TriagePageProps) {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/60 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-md transition-all shadow-sm cursor-pointer flex items-center justify-center gap-2 text-base"
+              className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 disabled:bg-brand-teal-900/60 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 text-base"
             >
               {submitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Computing Triage Assessment...</span>
+                  <span>Authorizing Antivenom Release...</span>
                 </>
               ) : (
-                <span>Save Assessment &amp; Determine Routing</span>
+                <span>💉 Authorize Antivenom Release (6 Vials)</span>
               )}
             </button>
           </div>
