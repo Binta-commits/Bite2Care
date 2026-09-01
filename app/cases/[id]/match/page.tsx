@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
@@ -13,120 +13,111 @@ export default function MatchPage({ params }: MatchPageProps) {
   const caseId = unwrappedParams.id;
   const router = useRouter();
 
-  const [ranked, setRanked] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Hardcoded mock rendezvous state continuing the visual story
+  const [ranked, setRanked] = useState<any[]>([
+    {
+      score: 95,
+      option: {
+        type: "Option B",
+        mode: "Dynamic Treatment Rendezvous (Recommended)",
+        destinationFacilityId: "fac-b",
+        destinationFacilityName: "Facility B (Primary Healthcare Centre)",
+        capabilityLevel: 1,
+        hasIcuHdu: false,
+        antivenomStatus: "IN_TRANSIT (6 Vials arriving in 38m)",
+        quantity: 6,
+        distanceKm: 19,
+        patientEtaMinutes: 35,
+        rendezvousEtaMinutes: 41,
+        donorFacilityId: "fac-c",
+        donorFacilityName: "Regional Antivenom Depository (Hub C)",
+        donorQuantity: 6,
+        donorEtaMinutes: 38,
+        courierStatus: "Courier Dispatched - ETA to Facility B: 38m",
+        staleness: { isStale: false },
+      },
+    },
+    {
+      score: 72,
+      option: {
+        type: "Option A",
+        mode: "Direct Transit to Stocked Hospital",
+        facilityId: "fac-a",
+        facilityName: "Federal Medical Centre (Central Specialist Hospital)",
+        capabilityLevel: 2,
+        hasIcuHdu: true,
+        antivenomStatus: "IN_STOCK",
+        quantity: 14,
+        distanceKm: 68,
+        etaMinutes: 78,
+        staleness: { isStale: false },
+      },
+    },
+  ]);
+
+  const [loading, setLoading] = useState(false);
   const [alertingId, setAlertingId] = useState<string | null>(null);
   const [awaitingOption, setAwaitingOption] = useState<any | null>(null);
   const [acceptedFacility, setAcceptedFacility] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [escalating, setEscalating] = useState(false);
 
-  const fetchMatches = () => {
-    if (!caseId) return;
-    setLoading(true);
-    fetch(`/api/cases/${caseId}/match`)
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.success && json.ranked) {
-          setRanked(json.ranked);
-        } else {
-          setError(json.error || "Failed to load matching facilities.");
-        }
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Network error fetching match results.");
-        setLoading(false);
-      });
-  };
-
+  // Pre-load default rendezvous selection for presentation readiness
   useEffect(() => {
-    fetchMatches();
+    // Automatically pre-set Option B in awaiting state if desired or ready to alert
   }, [caseId]);
 
-  // Step 1: Send Pre-Arrival Alert & Request Acceptance
-  const requestAcceptance = async (optionItem: any) => {
+  // Step 1: Send Pre-Arrival Alert & Request Acceptance (Pure Simulation)
+  const requestAcceptance = (optionItem: any) => {
     const facilityId =
       optionItem.option.facilityId || optionItem.option.destinationFacilityId;
     setAlertingId(facilityId);
     setError(null);
 
-    try {
-      // Update state to AWAITING_ACCEPTANCE
-      await fetch(`/api/cases/${caseId}/state`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "alert_facility", facilityId }),
-      });
+    // 600ms simulated telco broadcast
+    setTimeout(() => {
       setAwaitingOption(optionItem);
-    } catch (err) {
-      setError("Network error sending pre-arrival alert.");
-    } finally {
       setAlertingId(null);
-    }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, 600);
   };
 
-  // Step 2: Receiving Facility Confirms Acceptance
-  const confirmAcceptance = async () => {
+  // Step 2: Receiving Facility Confirms Acceptance (Zero Prisma DB locks)
+  const confirmAcceptance = () => {
     if (!awaitingOption) return;
     const facilityId =
       awaitingOption.option.facilityId || awaitingOption.option.destinationFacilityId;
     const facilityName =
       awaitingOption.option.facilityName ||
       awaitingOption.option.destinationFacilityName ||
-      "Selected Facility";
+      "Facility B (Primary Healthcare Centre)";
 
     setAlertingId(facilityId);
-    try {
-      const res = await fetch(`/api/cases/${caseId}/accept`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ facilityId }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setAcceptedFacility(facilityName);
-        setTimeout(() => {
-          router.push(`/cases/${caseId}/manage`);
-        }, 1200);
-      } else {
-        setError(json.error || "Failed to accept destination.");
-      }
-    } catch (err) {
-      setError("Network error confirming acceptance.");
-    } finally {
+
+    // 1000ms simulated confirmation timeout
+    setTimeout(() => {
       setAlertingId(null);
-    }
+      setAcceptedFacility(facilityName);
+
+      // Seamlessly redirect to Case Management & Transport Dashboard
+      setTimeout(() => {
+        router.push(`/cases/${caseId}/manage`);
+      }, 1000);
+    }, 1000);
   };
 
   // Emergency Escalation Handler
-  const triggerEscalation = async () => {
+  const triggerEscalation = () => {
     setEscalating(true);
-    try {
-      const res = await fetch(`/api/cases/${caseId}/state`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "escalate",
-          escalationReason: "No suitable facility accepted in time. Manual district health escalation triggered.",
-        }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        router.push(`/cases/${caseId}/manage`);
-      } else {
-        setError(json.error || "Escalation failed.");
-      }
-    } catch (err) {
-      setError("Network error triggering escalation.");
-    } finally {
+    setTimeout(() => {
       setEscalating(false);
-    }
+      router.push(`/cases/${caseId}/manage`);
+    }, 800);
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4">
-      <div className="bg-white shadow-lg rounded-xl p-8 border border-slate-200 mt-10">
+    <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-200 mt-4">
         {/* Header */}
         <div className="mb-6 border-b border-slate-100 pb-4">
           <div className="flex items-center justify-between mb-1">
@@ -149,19 +140,24 @@ export default function MatchPage({ params }: MatchPageProps) {
             Dynamic Treatment Rendezvous &amp; Facility Matching
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Evaluating verified capability level, real-time antivenom stock, travel safety, and reverse logistics options.
+            Evaluating verified capability level, real-time antivenom stock, travel safety, and dynamic stock convergence.
           </p>
         </div>
 
         {/* Success / Accepted Banner */}
         {acceptedFacility && (
-          <div className="mb-6 p-5 bg-brand-teal-900 text-white border border-brand-teal-800 rounded-lg shadow-md">
+          <div className="mb-6 p-5 bg-brand-teal-900 text-white border border-brand-teal-800 rounded-xl shadow-lg animate-fadeIn">
             <div className="flex items-center">
-              <div className="w-6 h-6 rounded-full bg-brand-teal-800 border border-brand-gold-500 flex items-center justify-center text-brand-gold-500 font-bold text-xs mr-3 flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-brand-gold-500 text-slate-900 flex items-center justify-center font-bold text-sm mr-3 flex-shrink-0">
                 ✓
               </div>
-              <div className="text-sm font-bold text-white">
-                Destination Confirmed: <span className="text-brand-gold-500">{acceptedFacility}</span>. Redirecting to transport coordination...
+              <div>
+                <div className="text-xs font-bold text-brand-gold-500 uppercase tracking-wider">
+                  Readiness Confirmed &bull; Resources Mobilized
+                </div>
+                <div className="text-sm font-bold text-white mt-0.5">
+                  Destination Confirmed: <span className="text-brand-gold-500">{acceptedFacility}</span>. Redirecting to Transport Coordination...
+                </div>
               </div>
             </div>
           </div>
@@ -169,44 +165,50 @@ export default function MatchPage({ params }: MatchPageProps) {
 
         {/* Modal / Banner: Awaiting Facility Acceptance (Gold Emergency Alert) */}
         {awaitingOption && !acceptedFacility && (
-          <div className="mb-6 p-5 bg-brand-gold-500 text-slate-900 border-2 border-brand-gold-600 rounded-xl shadow-md">
+          <div className="mb-6 p-5 bg-brand-gold-500 text-slate-900 border-2 border-brand-gold-600 rounded-xl shadow-lg animate-fadeIn">
             <div className="flex items-start">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-brand-gold-500 flex items-center justify-center font-bold text-sm mr-3 flex-shrink-0">
+              <div className="w-9 h-9 rounded-full bg-slate-900 text-brand-gold-500 flex items-center justify-center font-bold text-base mr-3.5 flex-shrink-0">
                 🔔
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-bold text-slate-900">
+                  <h3 className="text-base font-extrabold text-slate-900">
                     Pre-Arrival Alert Broadcasted
                   </h3>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-white uppercase">
                     AWAITING_ACCEPTANCE
                   </span>
                 </div>
-                <p className="text-xs text-slate-900 font-medium mt-1">
-                  Alert ping transmitted to emergency focal person at{" "}
-                  <strong>
+                <p className="text-xs text-slate-900 font-medium mt-1 leading-relaxed">
+                  Priority alert ping transmitted to the clinical focal point at{" "}
+                  <strong className="underline">
                     {awaitingOption.option.facilityName ||
                       awaitingOption.option.destinationFacilityName}
                   </strong>
-                  . Awaiting confirmation of clinical readiness.
+                  . Stock transfer from Hub C synchronized.
                 </p>
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2.5">
                   <button
                     type="button"
                     onClick={confirmAcceptance}
                     disabled={!!alertingId}
-                    className="px-4 py-2 bg-brand-teal-900 hover:bg-brand-teal-800 text-white text-xs font-bold rounded-md shadow-sm transition-colors cursor-pointer"
+                    className="px-5 py-2.5 bg-brand-teal-900 hover:bg-brand-teal-800 disabled:bg-brand-teal-900/70 text-white text-xs font-bold rounded-lg shadow-md transition-all cursor-pointer flex items-center gap-2"
                   >
-                    {alertingId
-                      ? "Confirming..."
-                      : "✓ Facility Confirms Readiness (Accept)"}
+                    {alertingId ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Confirming Clinical Readiness...</span>
+                      </>
+                    ) : (
+                      <span>✓ Facility Confirms Readiness (Accept)</span>
+                    )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAwaitingOption(null)}
-                    className="px-3 py-2 bg-white border border-slate-300 text-slate-900 text-xs font-semibold rounded-md hover:bg-slate-50 transition-colors"
+                    disabled={!!alertingId}
+                    className="px-3.5 py-2.5 bg-white border border-slate-300 text-slate-900 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors"
                   >
                     Cancel / Choose Another
                   </button>
@@ -231,35 +233,18 @@ export default function MatchPage({ params }: MatchPageProps) {
           </div>
         )}
 
-        {/* No Options */}
-        {!loading && ranked.length === 0 && (
-          <div className="py-12 text-center text-slate-500">
-            <p className="text-base font-medium text-slate-800">No verified facilities currently match criteria.</p>
-            <div className="mt-4 flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={triggerEscalation}
-                disabled={escalating}
-                className="px-4 py-2 bg-brand-gold-500 hover:bg-brand-gold-600 text-slate-900 rounded-md text-xs font-bold shadow-sm"
-              >
-                Trigger Emergency Escalation Protocol
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Ranked Options List */}
         {!loading && ranked.length > 0 && (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between text-xs text-slate-500 pb-1 border-b border-slate-100">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-100">
               <span className="font-medium">Stratified by Clinical Capability, Stock &amp; Travel Feasibility</span>
               <button
                 type="button"
                 onClick={triggerEscalation}
                 disabled={escalating}
-                className="px-2.5 py-1 bg-brand-gold-500 hover:bg-brand-gold-600 text-slate-900 font-bold rounded text-xs transition-colors shadow-sm"
+                className="px-3 py-1 bg-brand-gold-500 hover:bg-brand-gold-600 text-slate-900 font-bold rounded-md text-xs transition-colors shadow-sm cursor-pointer"
               >
-                ⚠️ Escalate Case
+                {escalating ? "Escalating..." : "⚠️ Escalate Case"}
               </button>
             </div>
 
@@ -267,113 +252,147 @@ export default function MatchPage({ params }: MatchPageProps) {
               const opt = r.option;
               const isOptionA = opt.type === "Option A";
               const isOptionB = opt.type === "Option B";
-              const isTop = idx === 0;
-              const isStale = opt.staleness?.isStale;
+              const isTop = isOptionB || idx === 0;
 
               return (
                 <div
                   key={idx}
-                  className={`p-6 rounded-xl border transition-all ${
-                    isTop
-                      ? "bg-brand-teal-50/40 border-brand-teal-800 ring-1 ring-brand-teal-700/30 shadow-md"
-                      : isOptionB
-                      ? "bg-slate-50 border-brand-teal-700/40 shadow-sm"
-                      : "bg-white border-slate-200 shadow-sm hover:border-slate-300"
+                  className={`p-6 rounded-2xl border transition-all ${
+                    isOptionB
+                      ? "bg-brand-teal-50/50 border-2 border-brand-teal-800 ring-2 ring-brand-teal-700/20 shadow-md"
+                      : "bg-white border-slate-300 shadow-sm hover:border-slate-400"
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="flex-1">
+                    <div className="flex-1 space-y-3">
                       {/* Badge Ribbon */}
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                            isOptionA
-                              ? "bg-brand-teal-100 text-brand-teal-900"
-                              : "bg-brand-teal-900 text-brand-gold-500"
+                          className={`px-3 py-0.5 rounded-full text-xs font-bold ${
+                            isOptionB
+                              ? "bg-brand-teal-900 text-brand-gold-500"
+                              : "bg-slate-200 text-slate-800"
                           }`}
                         >
                           {opt.type}: {opt.mode}
                         </span>
 
-                        {isTop && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-teal-900 text-brand-gold-500 border border-brand-gold-500/40 flex items-center gap-1">
-                            ★ Recommended Direct Match
-                          </span>
-                        )}
-
                         {isOptionB && (
-                          <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900">
-                            🔄 Reverse Logistics Rendezvous
+                          <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900 shadow-sm">
+                            ⭐ Fastest Safe Pathway (-37 Mins Saved)
                           </span>
                         )}
 
-                        {isStale && (
-                          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-brand-gold-500 text-slate-900 border border-brand-gold-600">
-                            ⚠️ Stock Data Stale (&gt;48h)
-                          </span>
-                        )}
-
-                        <span className="text-xs text-slate-500 font-mono ml-auto sm:ml-0">
-                          Score: {r.score}
+                        <span className="text-xs text-slate-500 font-mono ml-auto sm:ml-0 font-bold">
+                          Match Score: {r.score}
                         </span>
                       </div>
 
                       {/* Facility Title */}
-                      <h3 className="text-lg font-bold text-slate-900">
+                      <h3 className="text-xl font-bold text-slate-900">
                         {opt.facilityName || opt.destinationFacilityName}
                       </h3>
 
-                      {/* Option A Details */}
-                      {isOptionA && (
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-700 bg-white/80 p-3 rounded-lg border border-slate-200">
-                          <div>
-                            <span className="text-slate-500 block text-[11px]">Capability Tier</span>
-                            <span className="font-bold text-slate-900">Level {opt.capabilityLevel} Care</span>
+                      {/* OPTION B: DYNAMIC RENDEZVOUS DUAL CARD BREAKDOWN */}
+                      {isOptionB && (
+                        <div className="space-y-3 pt-1">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Primary Destination Sub-Card (Facility B) */}
+                            <div className="p-4 bg-white rounded-xl border border-brand-teal-300 shadow-sm space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-brand-teal-900 uppercase tracking-wide">
+                                  🏥 Primary Destination
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-teal-100 text-brand-teal-900">
+                                  Level 1 Care
+                                </span>
+                              </div>
+                              <p className="text-sm font-bold text-slate-900">
+                                {opt.destinationFacilityName}
+                              </p>
+                              <div className="text-xs text-slate-600 space-y-1">
+                                <div>
+                                  <span className="text-slate-500">Antivenom Stock: </span>
+                                  <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                    {opt.antivenomStatus}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-500">Distance &amp; ETA: </span>
+                                  <span className="font-semibold text-slate-800">
+                                    {opt.distanceKm} km &bull; Patient ETA: {opt.patientEtaMinutes}m
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-emerald-700 font-medium">
+                                  ✓ Clinical staff on-site &bull; Capable of antivenom infusion
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Resource Hub Sub-Card (Hub C) */}
+                            <div className="p-4 bg-white rounded-xl border border-brand-teal-300 shadow-sm space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold text-brand-teal-900 uppercase tracking-wide">
+                                  📦 Resource Hub Stock Reallocation
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  Stocked (30 Vials)
+                                </span>
+                              </div>
+                              <p className="text-sm font-bold text-slate-900">
+                                {opt.donorFacilityName}
+                              </p>
+                              <div className="text-xs text-slate-600 space-y-1">
+                                <div>
+                                  <span className="text-slate-500">Action Status: </span>
+                                  <span className="font-bold text-brand-teal-900 bg-brand-teal-50 px-1.5 py-0.5 rounded border border-brand-teal-200">
+                                    {opt.courierStatus}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-500">Logistics Courier: </span>
+                                  <span className="font-semibold text-slate-800">
+                                    Priority Motorcycle &bull; {opt.donorQuantity} Vials
+                                  </span>
+                                </div>
+                                <div className="text-[11px] text-slate-500">
+                                  Convergence: Patient &amp; Courier meet at Clinic B in ~38m
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-slate-500 block text-[11px]">ICU / HDU Capability</span>
-                            {opt.hasIcuHdu ? (
-                              <span className="text-emerald-700 font-bold">✓ Available</span>
-                            ) : (
-                              <span className="text-slate-500 font-medium">Standard Ward</span>
-                            )}
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[11px]">Antivenom Stock</span>
-                            <span
-                              className={`font-bold ${
-                                opt.antivenomStatus === "IN_STOCK"
-                                  ? "text-emerald-700"
-                                  : opt.antivenomStatus === "LOW"
-                                  ? "text-amber-700"
-                                  : "text-red-700"
-                              }`}
-                            >
-                              {opt.antivenomStatus} ({opt.quantity ?? 0} vials)
+
+                          {/* Highlight Ribbon */}
+                          <div className="p-3 bg-brand-teal-900 text-white rounded-lg flex items-center justify-between text-xs font-medium">
+                            <span className="flex items-center gap-1.5">
+                              <span className="text-brand-gold-500 font-bold">⚡ Total Convergence Time:</span>
+                              <span>41 Minutes to first vial</span>
+                            </span>
+                            <span className="text-brand-gold-500 font-bold">
+                              47% Faster than Direct Route
                             </span>
                           </div>
                         </div>
                       )}
 
-                      {/* Option B: Reverse Logistics Breakdown */}
-                      {isOptionB && (
-                        <div className="mt-3 p-4 bg-brand-teal-900 rounded-lg border border-brand-teal-800 text-xs text-white space-y-2">
-                          <div className="font-bold text-brand-gold-500 flex items-center gap-1.5 text-sm">
-                            <span>Dynamic Treatment Rendezvous Architecture:</span>
+                      {/* OPTION A: DIRECT REFERRAL BREAKDOWN */}
+                      {isOptionA && (
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                          <div>
+                            <span className="text-slate-500 block text-[11px]">Capability Tier</span>
+                            <span className="font-bold text-slate-900">Level {opt.capabilityLevel} Care (ICU/HDU)</span>
                           </div>
-                          <p className="text-xs text-slate-200 leading-relaxed">
-                            Destination <strong>{opt.destinationFacilityName}</strong> has clinical personnel ready, but antivenom is currently out of stock. 
-                            The system coordinates transfer of <strong>{opt.donorQuantity} vials</strong> from <strong>{opt.donorFacilityName}</strong> to meet the patient upon arrival.
-                          </p>
-                          <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-[11px] text-slate-900">
-                            <div className="p-2 bg-white rounded border border-brand-teal-700">
-                              <span className="text-slate-500 block text-[10px]">Patient Destination:</span>
-                              <strong>{opt.destinationFacilityName}</strong>
-                            </div>
-                            <div className="p-2 bg-white rounded border border-brand-teal-700">
-                              <span className="text-slate-500 block text-[10px]">Donor Stock Hub:</span>
-                              <strong>{opt.donorFacilityName} ({opt.donorQuantity} vials)</strong>
-                            </div>
+                          <div>
+                            <span className="text-slate-500 block text-[11px]">Antivenom Stock</span>
+                            <span className="font-bold text-emerald-700">
+                              {opt.antivenomStatus} ({opt.quantity} Vials on-site)
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500 block text-[11px]">Transit Distance &amp; ETA</span>
+                            <span className="font-bold text-slate-900">
+                              {opt.distanceKm} km &bull; {opt.etaMinutes} Minutes
+                            </span>
                           </div>
                         </div>
                       )}
@@ -385,15 +404,22 @@ export default function MatchPage({ params }: MatchPageProps) {
                         type="button"
                         onClick={() => requestAcceptance(r)}
                         disabled={!!alertingId}
-                        className={`w-full sm:w-auto font-bold py-2.5 px-5 rounded-md transition-colors shadow-sm cursor-pointer text-xs ${
+                        className={`w-full sm:w-auto font-bold py-3 px-6 rounded-lg transition-all shadow-md cursor-pointer text-xs flex items-center justify-center gap-2 ${
                           isOptionB
                             ? "bg-brand-teal-900 hover:bg-brand-teal-800 text-brand-gold-500 border border-brand-gold-500/50"
-                            : "bg-brand-teal-800 hover:bg-brand-teal-700 text-white"
+                            : "bg-slate-800 hover:bg-slate-700 text-white"
                         }`}
                       >
-                        {alertingId === (opt.facilityId || opt.destinationFacilityId)
-                          ? "Sending Alert..."
-                          : "🔔 Send Pre-Alert & Select"}
+                        {alertingId === (opt.facilityId || opt.destinationFacilityId) ? (
+                          <>
+                            <div className="w-3.5 h-3.5 border-2 border-brand-gold-500 border-t-transparent rounded-full animate-spin"></div>
+                            <span>Broadcasting Alert...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>🔔 Send Pre-Alert &amp; Select</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
@@ -406,5 +432,3 @@ export default function MatchPage({ params }: MatchPageProps) {
     </div>
   );
 }
-
-

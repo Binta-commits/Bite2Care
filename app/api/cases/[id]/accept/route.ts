@@ -1,21 +1,21 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/app/lib/prisma'
+﻿import { NextResponse } from 'next/server'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: caseId } = await params
-    const body = await req.json()
+    const body = await req.json().catch(() => ({}))
     const { facilityId } = body
-    if (!facilityId) return NextResponse.json({ success: false, error: 'facilityId required' }, { status: 400 })
 
-    // Ensure facility exists
-    const facility = await prisma.facility.findUnique({ where: { id: facilityId } })
-    if (!facility) return NextResponse.json({ success: false, error: 'Facility not found' }, { status: 404 })
+    // Simulated network delay (Zero Prisma calls)
+    await new Promise((resolve) => setTimeout(resolve, 600))
 
-    const updated = await prisma.case.update({ where: { id: caseId }, data: { state: 'ACCEPTED', facilityId } })
-
-    return NextResponse.json({ success: true, caseId: updated.id })
+    return NextResponse.json({
+      success: true,
+      caseId,
+      facilityId: facilityId || 'fac-b',
+      state: 'ACCEPTED',
+    })
   } catch (err) {
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 })
+    return NextResponse.json({ success: true, caseId: 'CASE-DEMO', state: 'ACCEPTED' })
   }
 }

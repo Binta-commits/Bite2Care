@@ -1,98 +1,59 @@
 ﻿import { NextResponse } from 'next/server'
-import { prisma } from '@/app/lib/prisma'
-import { rankFacilities } from '@/app/lib/matching'
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: caseId } = await params
 
-    // Try database fetch if available
-    let facilitiesForMatching: any[] = []
-    let clinicalAssessmentOutputs: any = null
+    // Simulated network delay (Zero Prisma SQLite database calls for serverless Vercel demo)
+    await new Promise((resolve) => setTimeout(resolve, 300))
 
-    try {
-      const facilities = await prisma.facility.findMany({ include: { facilityReadiness: true } })
-      if (facilities && facilities.length > 0) {
-        facilitiesForMatching = facilities.map(f => ({
-          id: f.id,
-          name: f.name,
-          capabilityLevel: f.capabilityLevel,
-          hasIcuHdu: f.hasIcuHdu,
-          facilityReadiness: f.facilityReadiness
-            ? { antivenomStatus: f.facilityReadiness.antivenomStatus, quantity: f.facilityReadiness.quantity, lastUpdated: f.facilityReadiness.lastUpdated }
-            : undefined,
-          distanceKm: null,
-        }))
-      }
-    } catch {
-      // Graceful fallback for serverless demo environments
-    }
-
-    // Default mock facilities if database query fails or is empty
-    if (facilitiesForMatching.length === 0) {
-      facilitiesForMatching = [
-        {
-          id: 'fac-a',
-          name: 'Federal Medical Centre (Central Specialist Hospital)',
+    // Hardcoded mock data continuing the Dynamic Rendezvous visual story
+    const ranked = [
+      {
+        score: 95,
+        option: {
+          type: 'Option B',
+          mode: 'Dynamic Treatment Rendezvous (Recommended)',
+          destinationFacilityId: 'fac-b',
+          destinationFacilityName: 'Facility B (Primary Healthcare Centre)',
+          capabilityLevel: 1,
+          hasIcuHdu: false,
+          antivenomStatus: 'IN_TRANSIT (6 Vials arriving in 38m)',
+          quantity: 6,
+          distanceKm: 19,
+          patientEtaMinutes: 35,
+          rendezvousEtaMinutes: 41,
+          donorFacilityId: 'fac-c',
+          donorFacilityName: 'Regional Antivenom Depository (Hub C)',
+          donorQuantity: 6,
+          donorEtaMinutes: 38,
+          courierStatus: 'Courier Dispatched - ETA to Facility B: 38m',
+          staleness: { isStale: false },
+        },
+      },
+      {
+        score: 72,
+        option: {
+          type: 'Option A',
+          mode: 'Direct Transit to Stocked Hospital',
+          facilityId: 'fac-a',
+          facilityName: 'Federal Medical Centre (Central Specialist Hospital)',
           capabilityLevel: 2,
           hasIcuHdu: true,
-          facilityReadiness: { antivenomStatus: 'IN_STOCK', quantity: 14, lastUpdated: new Date() },
+          antivenomStatus: 'IN_STOCK',
+          quantity: 14,
           distanceKm: 68,
+          etaMinutes: 78,
+          staleness: { isStale: false },
         },
-        {
-          id: 'fac-b',
-          name: 'Comprehensive Health Centre (Primary Care Unit)',
-          capabilityLevel: 1,
-          hasIcuHdu: false,
-          facilityReadiness: { antivenomStatus: 'OUT_OF_STOCK', quantity: 0, lastUpdated: new Date() },
-          distanceKm: 19,
-        },
-        {
-          id: 'fac-c',
-          name: 'Regional Antivenom Depository (Hub C)',
-          capabilityLevel: 1,
-          hasIcuHdu: false,
-          facilityReadiness: { antivenomStatus: 'IN_STOCK', quantity: 30, lastUpdated: new Date() },
-          distanceKm: 24,
-        },
-      ]
-    }
+      },
+    ]
 
-    const ranked = rankFacilities(caseId, facilitiesForMatching as any, clinicalAssessmentOutputs)
-
-    return NextResponse.json({ success: true, ranked })
+    return NextResponse.json({ success: true, ranked, caseId })
   } catch (err) {
-    // Fallback response for demo
     return NextResponse.json({
       success: true,
-      ranked: [
-        {
-          facility: {
-            id: 'fac-rendezvous',
-            name: 'Comprehensive Health Centre (Dynamic Stock Rendezvous)',
-            capabilityLevel: 1,
-            hasIcuHdu: false,
-            facilityReadiness: { antivenomStatus: 'IN_STOCK', quantity: 6 },
-          },
-          score: 95,
-          reason: 'Dynamic Rendezvous: Antivenom arriving via rapid moto courier from Hub C (-37 mins saved)',
-          etaMinutes: 41,
-          isRecommended: true,
-        },
-        {
-          facility: {
-            id: 'fac-a',
-            name: 'Federal Medical Centre (Direct Referral)',
-            capabilityLevel: 2,
-            hasIcuHdu: true,
-            facilityReadiness: { antivenomStatus: 'IN_STOCK', quantity: 14 },
-          },
-          score: 80,
-          reason: 'Direct transit to Level 2 facility holding on-site antivenom',
-          etaMinutes: 78,
-          isRecommended: false,
-        }
-      ],
+      ranked: [],
     })
   }
 }

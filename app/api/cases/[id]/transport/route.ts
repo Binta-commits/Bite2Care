@@ -1,19 +1,20 @@
-import { NextResponse } from 'next/server'
-import { prisma } from '@/app/lib/prisma'
+﻿import { NextResponse } from 'next/server'
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: caseId } = await params
 
-    // find an available transport provider
-    const provider = await prisma.transportProvider.findFirst({ where: { available: true } })
-    if (!provider) return NextResponse.json({ success: false, error: 'No transport providers available' }, { status: 404 })
+    // Simulated network delay
+    await new Promise((resolve) => setTimeout(resolve, 600))
 
-    // assign to case and mark provider unavailable
-    await prisma.transportProvider.update({ where: { id: provider.id }, data: { available: false } })
-    await prisma.case.update({ where: { id: caseId }, data: { transportProviderId: provider.id, state: 'TRANSPORT_COORDINATION' } })
-
-    return NextResponse.json({ success: true, provider: { id: provider.id, name: provider.name, phone: provider.phone } })
+    return NextResponse.json({
+      success: true,
+      provider: {
+        id: "trans-1",
+        name: "Musa Ibrahim (Plateau Emergency Transport Unit)",
+        phone: "+234 803 123 4567",
+      },
+    })
   } catch (err) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 })
   }
