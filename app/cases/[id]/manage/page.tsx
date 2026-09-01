@@ -90,11 +90,6 @@ export default function ManagePage({ params }: ManagePageProps) {
         state: "EN_ROUTE",
         transportProviderId: "trans-musa-04",
       }));
-
-      // 1.5 seconds after success state appears, smoothly route to Doctor's clinical triage form
-      setTimeout(() => {
-        router.push(`/triage/${caseId}`);
-      }, 1500);
     }, 1500);
   };
 
@@ -224,15 +219,15 @@ export default function ManagePage({ params }: ManagePageProps) {
               View Matches
             </Link>
             <Link
-              href={`/triage/${caseId}`}
+              href="/facility/00000000-0000-0000-0000-00000000000A/readiness"
               className="px-3 py-1.5 bg-brand-teal-50 hover:bg-brand-teal-100 text-brand-teal-900 rounded text-xs font-semibold transition-colors border border-brand-teal-200"
             >
-              View Triage
+              Facility Readiness
             </Link>
           </div>
         </div>
 
-        {/* Visual Lifecycle Stepper (Updated on dispatchSuccess) */}
+        {/* Visual Lifecycle Stepper (Updated on dispatchSuccess: Transport & En Route active) */}
         <div className="mb-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
           <div className="flex items-center justify-between text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
             <span>Emergency Response Timeline</span>
@@ -422,39 +417,41 @@ export default function ManagePage({ params }: ManagePageProps) {
             </div>
           )}
 
-          {/* SUCCESS DISPATCH STATE (Green Success State with seamless transition) */}
+          {/* SUCCESS DISPATCH STATE (Shows Primary Transition Button to Facility Dashboard) */}
           {dispatchSuccess && (
             <div className="space-y-3 animate-fadeIn">
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
                 <span className="font-bold flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                  Patient loaded &amp; en route. Fast-forwarding to Hospital Arrival &bull; Doctor Handover...
+                  Transport Assigned: Community Rider (Musa Ibrahim &bull; Keke Ambulance #04) is En Route &bull; ETA 8 mins
                 </span>
-                <span className="text-[11px] font-mono text-emerald-700">Redirecting &rarr;</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-700 text-white uppercase">
+                  EN_ROUTE
+                </span>
               </div>
-              <button
-                type="button"
-                disabled
-                className="w-full bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-xl text-xs shadow-md flex items-center justify-center gap-2 cursor-default"
+
+              {/* Primary button to switch to hospital view */}
+              <Link
+                href="/facility/00000000-0000-0000-0000-00000000000A/readiness"
+                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-bold py-4 px-6 rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer border border-brand-teal-700"
               >
-                <span>✓ Transport Assigned: Community Rider ETA 8 mins</span>
-              </button>
+                <span>🏥 Switch to Facility Dashboard (Doctor View) &rarr;</span>
+              </Link>
             </div>
           )}
 
-          {/* STATE: EN_ROUTE */}
+          {/* STATE: EN_ROUTE (if navigated back) */}
           {effectiveState === "EN_ROUTE" && !dispatchSuccess && (
             <div className="space-y-3">
               <div className="p-3 bg-brand-teal-50 border border-brand-teal-200 rounded-md text-xs text-brand-teal-900 font-medium">
                 Patient is accompanied en route to receiving facility. Pre-arrival readiness is active.
               </div>
-              <button
-                type="button"
-                onClick={() => router.push(`/triage/${caseId}`)}
-                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-semibold py-3 px-4 rounded-md text-xs transition-colors shadow-sm cursor-pointer"
+              <Link
+                href="/facility/00000000-0000-0000-0000-00000000000A/readiness"
+                className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer"
               >
-                🏥 Proceed to Clinical Handover / Doctor Triage &rarr;
-              </button>
+                🏥 Switch to Facility Dashboard (Doctor View) &rarr;
+              </Link>
             </div>
           )}
 
