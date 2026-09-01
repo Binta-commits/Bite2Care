@@ -106,27 +106,34 @@ export default function TriagePage({ params }: TriagePageProps) {
       <div className="bg-white shadow-lg rounded-xl p-8 border border-slate-200 mt-10">
         {/* Header */}
         <div className="mb-6 border-b border-slate-100 pb-4">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-gold-500 text-slate-900">
-                Emergency Step 2
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900">
+                Arrival &amp; Clinical Handover
               </span>
               <span className="text-xs text-slate-500 font-medium">
                 Case ID: <span className="font-mono font-bold text-slate-800">{caseId}</span>
               </span>
             </div>
             <Link
-              href="/activate"
+              href={`/cases/${caseId}/manage`}
               className="text-xs text-brand-teal-800 hover:text-brand-teal-700 font-semibold"
             >
-              &larr; Back to Activation
+              &larr; Back to Coordination
             </Link>
           </div>
+
+          {/* Full-width Role Confirmation Alert Banner */}
+          <div className="bg-brand-teal-900 text-white font-bold p-3.5 rounded-xl mb-4 border border-brand-teal-800 shadow-md flex items-center gap-2.5 text-sm">
+            <span className="text-base">👨‍⚕️</span>
+            <span>DOCTOR&apos;S PORTAL: Patient Arrived at Facility B (Primary Healthcare Centre)</span>
+          </div>
+
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Clinical Triage &amp; Risk Stratification
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Evaluate immediate bypass red flags, vital signs (NEWS2), and snakebite-specific indicators to determine care level.
+            Attending Clinician: Evaluate immediate bypass red flags, vital signs, and WHO indicators to formally authorize antivenom release.
           </p>
         </div>
 

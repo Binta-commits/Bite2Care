@@ -219,10 +219,10 @@ export default function ManagePage({ params }: ManagePageProps) {
               View Matches
             </Link>
             <Link
-              href="/facility/00000000-0000-0000-0000-00000000000A/readiness"
+              href={`/triage/${caseId}`}
               className="px-3 py-1.5 bg-brand-teal-50 hover:bg-brand-teal-100 text-brand-teal-900 rounded text-xs font-semibold transition-colors border border-brand-teal-200"
             >
-              Facility Readiness
+              Doctor Handover
             </Link>
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function ManagePage({ params }: ManagePageProps) {
             </div>
           )}
 
-          {/* SUCCESS DISPATCH STATE (Shows Primary Transition Button to Facility Dashboard) */}
+          {/* SUCCESS DISPATCH STATE (Shows Primary Transition Button to Doctor's View on Triage) */}
           {dispatchSuccess && (
             <div className="space-y-3 animate-fadeIn">
               <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
@@ -430,9 +430,9 @@ export default function ManagePage({ params }: ManagePageProps) {
                 </span>
               </div>
 
-              {/* Primary button to switch to hospital view */}
+              {/* Primary button to switch to Doctor's View on Triage */}
               <Link
-                href="/facility/00000000-0000-0000-0000-00000000000A/readiness"
+                href={`/triage/${caseId}`}
                 className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-bold py-4 px-6 rounded-xl text-sm transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer border border-brand-teal-700"
               >
                 <span>🏥 Switch to Facility Dashboard (Doctor View) &rarr;</span>
@@ -447,7 +447,7 @@ export default function ManagePage({ params }: ManagePageProps) {
                 Patient is accompanied en route to receiving facility. Pre-arrival readiness is active.
               </div>
               <Link
-                href="/facility/00000000-0000-0000-0000-00000000000A/readiness"
+                href={`/triage/${caseId}`}
                 className="w-full bg-brand-teal-800 hover:bg-brand-teal-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer"
               >
                 🏥 Switch to Facility Dashboard (Doctor View) &rarr;
