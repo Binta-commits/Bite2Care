@@ -334,7 +334,7 @@ export default function MatchPage({ params }: MatchPageProps) {
                                   🏥 Primary Destination
                                 </span>
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-brand-teal-100 text-brand-teal-900">
-                                  Level 1 Care
+                                  Level 1 - Basic Ready (Stable Cases)
                                 </span>
                               </div>
                               <p className="text-sm font-bold text-slate-900">
@@ -354,7 +354,7 @@ export default function MatchPage({ params }: MatchPageProps) {
                                   </span>
                                 </div>
                                 <div className="text-[11px] text-emerald-700 font-medium">
-                                  ✓ Clinical staff on-site &bull; Capable of antivenom infusion
+                                  ✓ Level 1 triage staff &bull; Capable of antivenom infusion
                                 </div>
                               </div>
                             </div>
@@ -410,7 +410,7 @@ export default function MatchPage({ params }: MatchPageProps) {
                         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                           <div>
                             <span className="text-slate-500 block text-[11px]">Capability Tier</span>
-                            <span className="font-bold text-slate-900">Level {opt.capabilityLevel} Care (ICU/HDU)</span>
+                            <span className="font-bold text-slate-900">Level 3 - Fully Ready (ICU &amp; 20WBCT)</span>
                           </div>
                           <div>
                             <span className="text-slate-500 block text-[11px]">Antivenom Stock</span>

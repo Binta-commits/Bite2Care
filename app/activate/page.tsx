@@ -66,6 +66,32 @@ const SNAKE_SPECIES_OPTIONS = [
   "Other / Unidentified Elapid",
 ];
 
+// Helper to get local datetime string in browser timezone
+const getLocalIsoDateTime = () => {
+  try {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  } catch (e) {
+    return new Date().toISOString().slice(0, 16);
+  }
+};
+
+// Curated popular incident landmarks for fast dispatch autocomplete
+const POPULAR_LANDMARKS = [
+  "Keffi Market Farm Corridor, Nasarawa",
+  "Kaltungo Snakebite Treatment Center, Gombe",
+  "Yam farm 2km north of Keffi market, Nasarawa",
+  "Cocoa plantation near Osu river, Greater Accra",
+  "Grazing field outside Kibera, Nairobi",
+  "Maize field near Kabulonga clinic, Lusaka",
+  "Rice paddy edge, Andheri district, Maharashtra",
+];
+
 export default function ActivatePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"web" | "ussd">("web");
@@ -73,15 +99,24 @@ export default function ActivatePage() {
   // Web Form State
   const [form, setForm] = useState({
     country: "Nigeria",
+    initiatorRole: "Remote Dispatcher",
+    referredByHealer: false,
+    healerName: "",
     location: "",
     latitude: "",
     longitude: "",
-    biteTime: new Date().toISOString().slice(0, 16),
+    biteTime: getLocalIsoDateTime(),
     suspectedSnake: "Unknown / Not Identified",
     patientAge: "",
+    ageUnit: "years",
+    anatomicalBiteSite: "Lower Limb",
     patientSex: "male",
     pregnancyStatus: "N/A",
   });
+
+  // Snake Autocomplete Dropdown State
+  const [snakeSearchQuery, setSnakeSearchQuery] = useState("");
+  const [isSnakeDropdownOpen, setIsSnakeDropdownOpen] = useState(false);
 
   // Simulated Telecom Network Geolocation State
   const [fetchingLoc, setFetchingLoc] = useState(false);
@@ -133,7 +168,9 @@ export default function ActivatePage() {
   const handleWebChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    const { name, value } = e.target;
+    const { name, value, type } = e.target;
+    const isCheckbox = type === "checkbox";
+    const checked = (e.target as HTMLInputElement).checked;
 
     if (name === "country") {
       setForm((prev) => ({
@@ -164,7 +201,10 @@ export default function ActivatePage() {
         }));
       }
     } else {
-      setForm((prev) => ({ ...prev, [name]: value }));
+      setForm((prev) => ({
+        ...prev,
+        [name]: isCheckbox ? checked : value,
+      }));
     }
 
     // Clear field-level error on user modification
@@ -193,13 +233,13 @@ export default function ActivatePage() {
       newErrors.biteTime = "Estimated bite date and time is required.";
     }
 
-    if (
-      !form.patientAge ||
-      isNaN(Number(form.patientAge)) ||
-      Number(form.patientAge) < 0 ||
-      Number(form.patientAge) > 120
-    ) {
-      newErrors.patientAge = "Patient age is required (0 to 120 years).";
+    if (!form.anatomicalBiteSite) {
+      newErrors.anatomicalBiteSite = "Anatomical bite site is required.";
+    }
+
+    const ageNum = Number(form.patientAge);
+    if (!form.patientAge || isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
+      newErrors.patientAge = "Patient age is required (e.g. 0.5 to 120).";
     }
 
     setErrors(newErrors);
@@ -223,12 +263,21 @@ export default function ActivatePage() {
         ? locText
         : `[${form.country}] ${locText}`;
 
+      const formattedAgeDisplay =
+        form.ageUnit === "months"
+          ? `${form.patientAge} mo`
+          : `${form.patientAge}`;
+
       // Strictly sanitized payload matching database schema
       const payload = {
         location: formattedLocation,
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
         biteTime: form.biteTime,
         suspectedSnake: form.suspectedSnake.trim() || "Unknown / Not Identified",
         patientAge: Number(form.patientAge),
+        ageUnit: form.ageUnit,
+        anatomicalBiteSite: form.anatomicalBiteSite,
         patientSex: form.patientSex,
         pregnancyStatus: form.patientSex === "male" ? "N/A" : form.pregnancyStatus,
         channel: "WEB",
@@ -244,14 +293,23 @@ export default function ActivatePage() {
       // Save to localStorage for demo persistence across all pages
       try {
         const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
+        const healerValue = form.referredByHealer
+          ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
+          : null;
+
         localStorage.setItem(
           "bite2care_demo_data",
           JSON.stringify({
             location: form.location.trim() || activeCountryConfig.defaultLoc,
             country: form.country,
-            age: form.patientAge || "28",
+            latitude: form.latitude || activeCountryConfig.lat,
+            longitude: form.longitude || activeCountryConfig.lng,
+            age: formattedAgeDisplay,
             sex: form.patientSex || "male",
             snake: form.suspectedSnake || "West African Carpet Viper (Echis ocellatus)",
+            biteSite: form.anatomicalBiteSite,
+            initiator: form.initiatorRole,
+            healer: healerValue,
           })
         );
       } catch (err) {}
@@ -271,14 +329,27 @@ export default function ActivatePage() {
       // Save to localStorage on fallback as well
       try {
         const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
+        const formattedAgeDisplay =
+          form.ageUnit === "months"
+            ? `${form.patientAge} mo`
+            : `${form.patientAge}`;
+        const healerValue = form.referredByHealer
+          ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
+          : null;
+
         localStorage.setItem(
           "bite2care_demo_data",
           JSON.stringify({
             location: form.location.trim() || activeCountryConfig.defaultLoc,
             country: form.country,
-            age: form.patientAge || "28",
+            latitude: form.latitude || activeCountryConfig.lat,
+            longitude: form.longitude || activeCountryConfig.lng,
+            age: formattedAgeDisplay || "28",
             sex: form.patientSex || "male",
             snake: form.suspectedSnake || "West African Carpet Viper (Echis ocellatus)",
+            biteSite: form.anatomicalBiteSite,
+            initiator: form.initiatorRole,
+            healer: healerValue,
           })
         );
       } catch (e) {}
@@ -430,6 +501,27 @@ export default function ActivatePage() {
             {/* TAB 1: WEB FORM */}
             {activeTab === "web" && (
               <form onSubmit={submitWeb} noValidate className="space-y-5">
+                {/* Initiator Role (Point 1) */}
+                <div>
+                  <label
+                    htmlFor="initiatorRole"
+                    className="block text-sm font-medium text-slate-900 mb-1"
+                  >
+                    Initiator Role <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="initiatorRole"
+                    name="initiatorRole"
+                    value={form.initiatorRole}
+                    onChange={handleWebChange}
+                    className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm font-medium"
+                  >
+                    <option value="Remote Dispatcher">Remote Dispatcher (Central Emergency Ops)</option>
+                    <option value="On-site Snakebite Champion (SBC)">On-site Snakebite Champion (SBC / Community Volunteer)</option>
+                    <option value="Facility Nurse">Facility Nurse (Frontline Clinic)</option>
+                  </select>
+                </div>
+
                 {/* Country Selection */}
                 <div>
                   <label
@@ -457,6 +549,43 @@ export default function ActivatePage() {
                     <p className="mt-1 text-xs text-red-600 font-semibold">
                       {errors.country}
                     </p>
+                  )}
+                </div>
+
+                {/* Traditional Healer Integration (Point 1) */}
+                <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <input
+                      id="referredByHealer"
+                      name="referredByHealer"
+                      type="checkbox"
+                      checked={form.referredByHealer}
+                      onChange={handleWebChange}
+                      className="w-4 h-4 mt-0.5 text-brand-teal-800 rounded border-slate-300 focus:ring-brand-teal-700 cursor-pointer"
+                    />
+                    <label htmlFor="referredByHealer" className="text-xs font-bold text-slate-900 cursor-pointer">
+                      Referred by Traditional Healer?
+                      <span className="block font-normal text-[11px] text-slate-600 mt-0.5">
+                        Enables automated referral incentive tracking ($10 voucher) to integrate grassroots healers into modern clinical pathways.
+                      </span>
+                    </label>
+                  </div>
+
+                  {form.referredByHealer && (
+                    <div className="pt-2 border-t border-amber-200/80 animate-fadeIn">
+                      <label htmlFor="healerName" className="block text-xs font-semibold text-slate-800 mb-1">
+                        Healer Name / ID
+                      </label>
+                      <input
+                        id="healerName"
+                        name="healerName"
+                        type="text"
+                        placeholder="e.g. Baba Musa (Keffi Ward Registry #TH-402)"
+                        value={form.healerName}
+                        onChange={handleWebChange}
+                        className="w-full border border-slate-300 rounded-md p-2.5 bg-white text-slate-900 text-xs shadow-sm focus:ring-2 focus:ring-brand-teal-700 focus:outline-none font-medium"
+                      />
+                    </div>
                   )}
                 </div>
 
@@ -500,13 +629,14 @@ export default function ActivatePage() {
                     </button>
                   </div>
 
-                  {/* State/LGA / Landmarks input with dynamic placeholder per selected country */}
+                  {/* State/LGA / Landmarks input with dynamic placeholder per selected country & popular landmarks datalist */}
                   <div>
                     <input
                       key={form.country}
                       id="location"
                       name="location"
                       type="text"
+                      list="local-landmarks-list"
                       required
                       placeholder={activeCountryConfig.placeholder}
                       value={form.location}
@@ -515,6 +645,11 @@ export default function ActivatePage() {
                         errors.location ? "border-red-500 bg-red-50/20" : "border-slate-300"
                       }`}
                     />
+                    <datalist id="local-landmarks-list">
+                      {POPULAR_LANDMARKS.map((landmark) => (
+                        <option key={landmark} value={landmark} />
+                      ))}
+                    </datalist>
                     {errors.location && (
                       <p className="mt-1 text-xs text-red-600 font-semibold">
                         {errors.location}
@@ -522,53 +657,59 @@ export default function ActivatePage() {
                     )}
                   </div>
 
-                  {/* Locked Read-Only Auto-filled Latitude and Longitude Coordinates */}
+                  {/* Unlocked Latitude and Longitude Coordinates (Allows Manual Override if Telco Ping is Inaccurate) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <div>
-                      <label
-                        htmlFor="latitude"
-                        className="block text-xs font-medium text-slate-500 mb-1"
-                      >
-                        Victim Latitude (Auto-populated by Telecom)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label
+                          htmlFor="latitude"
+                          className="block text-xs font-semibold text-slate-700"
+                        >
+                          Victim Latitude
+                        </label>
+                        <span className="text-[10px] text-slate-500 italic">Editable / GPS Override</span>
+                      </div>
                       <input
                         id="latitude"
                         name="latitude"
                         type="text"
-                        readOnly
                         placeholder="e.g. 8.8471"
                         value={form.latitude}
-                        className="w-full border border-slate-200 rounded-md p-2.5 font-mono text-xs bg-slate-100 text-slate-500 cursor-not-allowed shadow-inner focus:outline-none"
+                        onChange={handleWebChange}
+                        className="w-full border border-slate-300 rounded-md p-2.5 font-mono text-xs bg-white text-slate-900 shadow-sm focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label
-                        htmlFor="longitude"
-                        className="block text-xs font-medium text-slate-500 mb-1"
-                      >
-                        Victim Longitude (Auto-populated by Telecom)
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label
+                          htmlFor="longitude"
+                          className="block text-xs font-semibold text-slate-700"
+                        >
+                          Victim Longitude
+                        </label>
+                        <span className="text-[10px] text-slate-500 italic">Editable / GPS Override</span>
+                      </div>
                       <input
                         id="longitude"
                         name="longitude"
                         type="text"
-                        readOnly
                         placeholder="e.g. 7.8932"
                         value={form.longitude}
-                        className="w-full border border-slate-200 rounded-md p-2.5 font-mono text-xs bg-slate-100 text-slate-500 cursor-not-allowed shadow-inner focus:outline-none"
+                        onChange={handleWebChange}
+                        className="w-full border border-slate-300 rounded-md p-2.5 font-mono text-xs bg-white text-slate-900 shadow-sm focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Estimated Bite Time */}
+                {/* Estimated Bite Time (Local Timezone Initialized) */}
                 <div>
                   <label
                     htmlFor="biteTime"
                     className="block text-sm font-medium text-slate-900 mb-1"
                   >
-                    Estimated Bite Date &amp; Time <span className="text-red-500">*</span>
+                    Estimated Bite Date &amp; Time (Local Timezone) <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="biteTime"
@@ -588,35 +729,126 @@ export default function ActivatePage() {
                   )}
                 </div>
 
-                {/* Snake Species Searchable Autocomplete & Selection */}
+                {/* Anatomical Bite Site (Point 6) */}
                 <div>
+                  <label
+                    htmlFor="anatomicalBiteSite"
+                    className="block text-sm font-medium text-slate-900 mb-1"
+                  >
+                    Anatomical Bite Site <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="anatomicalBiteSite"
+                    name="anatomicalBiteSite"
+                    required
+                    value={form.anatomicalBiteSite}
+                    onChange={handleWebChange}
+                    className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                      errors.anatomicalBiteSite ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                    }`}
+                  >
+                    <option value="Lower Limb">Lower Limb (Foot / Ankle / Leg)</option>
+                    <option value="Upper Limb">Upper Limb (Hand / Wrist / Arm)</option>
+                    <option value="Head/Neck">Head / Neck (High Alert)</option>
+                    <option value="Torso">Torso / Abdomen / Back</option>
+                    <option value="Unknown">Unknown / Hidden</option>
+                  </select>
+                  {errors.anatomicalBiteSite && (
+                    <p className="mt-1 text-xs text-red-600 font-semibold">
+                      {errors.anatomicalBiteSite}
+                    </p>
+                  )}
+                </div>
+
+                {/* Snake Species Searchable Filter Combobox & Autocomplete Selection */}
+                <div className="relative">
                   <label
                     htmlFor="suspectedSnake"
                     className="block text-sm font-medium text-slate-900 mb-1"
                   >
-                    Suspected Snake Species (Searchable Autocomplete)
+                    Suspected Snake Species (Search &amp; Filter Autocomplete)
                   </label>
-                  <input
-                    id="suspectedSnake"
-                    name="suspectedSnake"
-                    type="text"
-                    list="snake-species-list"
-                    placeholder="Type to search species or pick 'Unknown / Not Identified'"
-                    value={form.suspectedSnake}
-                    onChange={handleWebChange}
-                    className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm"
-                  />
+                  <div className="relative">
+                    <input
+                      id="suspectedSnake"
+                      name="suspectedSnake"
+                      type="text"
+                      list="snake-species-list"
+                      placeholder="Type to filter species e.g. Viper, Cobra, Krait..."
+                      value={form.suspectedSnake}
+                      onChange={(e) => {
+                        handleWebChange(e);
+                        setSnakeSearchQuery(e.target.value);
+                        setIsSnakeDropdownOpen(true);
+                      }}
+                      onFocus={() => setIsSnakeDropdownOpen(true)}
+                      className="w-full border border-slate-300 rounded-md p-3 pr-10 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm font-medium"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsSnakeDropdownOpen((prev) => !prev)}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
+                    >
+                      {isSnakeDropdownOpen ? "▲" : "▼"}
+                    </button>
+                  </div>
+
                   <datalist id="snake-species-list">
                     {SNAKE_SPECIES_OPTIONS.map((species) => (
                       <option key={species} value={species} />
                     ))}
                   </datalist>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Defaults to &ldquo;Unknown / Not Identified&rdquo; if caller is unsure.
-                  </p>
+
+                  {/* Interactive Dynamic Dropdown Filter Menu */}
+                  {isSnakeDropdownOpen && (
+                    <div className="absolute z-30 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
+                      {SNAKE_SPECIES_OPTIONS.filter((item) =>
+                        item.toLowerCase().includes((form.suspectedSnake || snakeSearchQuery).toLowerCase())
+                      ).map((species) => (
+                        <button
+                          key={species}
+                          type="button"
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, suspectedSnake: species }));
+                            setIsSnakeDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center justify-between hover:bg-brand-teal-50 hover:text-brand-teal-900 cursor-pointer ${
+                            form.suspectedSnake === species
+                              ? "bg-brand-teal-50 text-brand-teal-900 font-bold"
+                              : "text-slate-800"
+                          }`}
+                        >
+                          <span>{species}</span>
+                          {form.suspectedSnake === species && (
+                            <span className="text-brand-teal-700 font-bold">✓</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="text-[11px] text-slate-500">Quick Pick:</span>
+                    {["Unknown / Not Identified", "West African Carpet Viper", "Black-necked Spitting Cobra", "Russell's Viper"].map((name) => {
+                      const fullOption = SNAKE_SPECIES_OPTIONS.find((s) => s.includes(name)) || name;
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, suspectedSnake: fullOption }));
+                            setIsSnakeDropdownOpen(false);
+                          }}
+                          className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors border border-slate-200 cursor-pointer"
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {/* Patient Demographics & Conditional Pregnancy */}
+                {/* Patient Demographics & Infant Decimal Age Support */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label
@@ -625,20 +857,32 @@ export default function ActivatePage() {
                     >
                       Patient Age <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      id="patientAge"
-                      type="number"
-                      name="patientAge"
-                      min="0"
-                      max="120"
-                      required
-                      placeholder="Years"
-                      value={form.patientAge}
-                      onChange={handleWebChange}
-                      className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
-                        errors.patientAge ? "border-red-500 bg-red-50/20" : "border-slate-300"
-                      }`}
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        id="patientAge"
+                        type="number"
+                        name="patientAge"
+                        step="0.1"
+                        min="0"
+                        max="120"
+                        required
+                        placeholder="e.g. 0.5 or 28"
+                        value={form.patientAge}
+                        onChange={handleWebChange}
+                        className={`flex-1 border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                          errors.patientAge ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                        }`}
+                      />
+                      <select
+                        name="ageUnit"
+                        value={form.ageUnit}
+                        onChange={handleWebChange}
+                        className="w-24 border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-slate-50 text-slate-900 shadow-sm text-xs font-semibold"
+                      >
+                        <option value="years">Years</option>
+                        <option value="months">Months</option>
+                      </select>
+                    </div>
                     {errors.patientAge && (
                       <p className="mt-1 text-xs text-red-600 font-semibold">
                         {errors.patientAge}
