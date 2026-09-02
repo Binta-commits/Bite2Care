@@ -47,25 +47,6 @@ const COUNTRY_CONFIGS: Record<
   },
 };
 
-// Curated regional snake species list for rapid frontline identification
-const SNAKE_SPECIES_OPTIONS = [
-  "Unknown / Not Identified",
-  "West African Carpet Viper (Echis ocellatus)",
-  "Black-necked Spitting Cobra (Naja nigricollis)",
-  "Puff Adder (Bitis arietans)",
-  "Black Mamba (Dendroaspis polylepis)",
-  "Green Mamba (Dendroaspis viridis / angusticeps)",
-  "Saw-scaled Viper (Echis carinatus)",
-  "Russell's Viper (Daboia russelii)",
-  "Indian Spectacled Cobra (Naja naja)",
-  "Common Krait (Bungarus caeruleus)",
-  "Boomslang (Dispholidus typus)",
-  "Gaboon Viper (Bitis gabonica)",
-  "Forest Cobra (Naja melanoleuca)",
-  "Other / Unidentified Viper",
-  "Other / Unidentified Elapid",
-];
-
 // Helper to get local datetime string in browser timezone
 const getLocalIsoDateTime = () => {
   try {
@@ -113,10 +94,6 @@ export default function ActivatePage() {
     patientSex: "male",
     pregnancyStatus: "N/A",
   });
-
-  // Snake Autocomplete Dropdown State
-  const [snakeSearchQuery, setSnakeSearchQuery] = useState("");
-  const [isSnakeDropdownOpen, setIsSnakeDropdownOpen] = useState(false);
 
   // Simulated Telecom Network Geolocation State
   const [fetchingLoc, setFetchingLoc] = useState(false);
@@ -760,95 +737,39 @@ export default function ActivatePage() {
                   )}
                 </div>
 
-                {/* Snake Species Searchable Filter Combobox & Autocomplete Selection */}
-                <div className="relative">
+                {/* Suspected Snake Species Dropdown (Standard native select matching other form fields) */}
+                <div>
                   <label
                     htmlFor="suspectedSnake"
                     className="block text-sm font-medium text-slate-900 mb-1"
                   >
-                    Suspected Snake Species (Search &amp; Filter Autocomplete)
+                    Suspected Snake Species <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      id="suspectedSnake"
-                      name="suspectedSnake"
-                      type="text"
-                      list="snake-species-list"
-                      placeholder="Type to filter species e.g. Viper, Cobra, Krait..."
-                      value={form.suspectedSnake}
-                      onChange={(e) => {
-                        handleWebChange(e);
-                        setSnakeSearchQuery(e.target.value);
-                        setIsSnakeDropdownOpen(true);
-                      }}
-                      onFocus={() => setIsSnakeDropdownOpen(true)}
-                      className="w-full border border-slate-300 rounded-md p-3 pr-10 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm font-medium"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setIsSnakeDropdownOpen((prev) => !prev)}
-                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer text-xs"
-                    >
-                      {isSnakeDropdownOpen ? "▲" : "▼"}
-                    </button>
-                  </div>
-
-                  <datalist id="snake-species-list">
-                    {SNAKE_SPECIES_OPTIONS.map((species) => (
-                      <option key={species} value={species} />
-                    ))}
-                  </datalist>
-
-                  {/* Interactive Dynamic Dropdown Filter Menu */}
-                  {isSnakeDropdownOpen && (
-                    <div className="absolute z-30 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
-                      {SNAKE_SPECIES_OPTIONS.filter((item) =>
-                        item.toLowerCase().includes((form.suspectedSnake || snakeSearchQuery).toLowerCase())
-                      ).map((species) => (
-                        <button
-                          key={species}
-                          type="button"
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, suspectedSnake: species }));
-                            setIsSnakeDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-2.5 text-xs transition-colors flex items-center justify-between hover:bg-brand-teal-50 hover:text-brand-teal-900 cursor-pointer ${
-                            form.suspectedSnake === species
-                              ? "bg-brand-teal-50 text-brand-teal-900 font-bold"
-                              : "text-slate-800"
-                          }`}
-                        >
-                          <span>{species}</span>
-                          {form.suspectedSnake === species && (
-                            <span className="text-brand-teal-700 font-bold">✓</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                  <select
+                    id="suspectedSnake"
+                    name="suspectedSnake"
+                    required
+                    value={form.suspectedSnake}
+                    onChange={handleWebChange}
+                    className={`w-full border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
+                      errors.suspectedSnake ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                    }`}
+                  >
+                    <option value="Unknown / Not Identified">Unknown / Not Identified</option>
+                    <option value="West African Carpet Viper (Echis ocellatus)">West African Carpet Viper (Echis ocellatus)</option>
+                    <option value="Puff Adder (Bitis arietans)">Puff Adder (Bitis arietans)</option>
+                    <option value="Black Mamba (Dendroaspis polylepis)">Black Mamba (Dendroaspis polylepis)</option>
+                    <option value="Spitting Cobra (Naja nigricollis)">Spitting Cobra (Naja nigricollis)</option>
+                    <option value="Common Krait (Bungarus caeruleus)">Common Krait (Bungarus caeruleus)</option>
+                  </select>
+                  {errors.suspectedSnake && (
+                    <p className="mt-1 text-xs text-red-600 font-semibold">
+                      {errors.suspectedSnake}
+                    </p>
                   )}
-
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    <span className="text-[11px] text-slate-500">Quick Pick:</span>
-                    {["Unknown / Not Identified", "West African Carpet Viper", "Black-necked Spitting Cobra", "Russell's Viper"].map((name) => {
-                      const fullOption = SNAKE_SPECIES_OPTIONS.find((s) => s.includes(name)) || name;
-                      return (
-                        <button
-                          key={name}
-                          type="button"
-                          onClick={() => {
-                            setForm((prev) => ({ ...prev, suspectedSnake: fullOption }));
-                            setIsSnakeDropdownOpen(false);
-                          }}
-                          className="px-2 py-0.5 rounded-full text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-colors border border-slate-200 cursor-pointer"
-                        >
-                          {name}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
-                {/* Patient Demographics & Infant Decimal Age Support */}
+                {/* Patient Demographics & Age Input */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label
@@ -862,11 +783,10 @@ export default function ActivatePage() {
                         id="patientAge"
                         type="number"
                         name="patientAge"
-                        step="0.1"
                         min="0"
                         max="120"
                         required
-                        placeholder="e.g. 0.5 or 28"
+                        placeholder="e.g. 25"
                         value={form.patientAge}
                         onChange={handleWebChange}
                         className={`flex-1 border rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm ${
