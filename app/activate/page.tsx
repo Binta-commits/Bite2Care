@@ -88,6 +88,7 @@ export default function ActivatePage() {
     longitude: "",
     biteTime: getLocalIsoDateTime(),
     suspectedSnake: "Unknown / Not Identified",
+    customSnake: "",
     patientAge: "",
     ageUnit: "years",
     anatomicalBiteSite: "Lower Limb",
@@ -202,6 +203,10 @@ export default function ActivatePage() {
       newErrors.country = "Country selection is required.";
     }
 
+    if (form.referredByHealer && !form.healerName.trim()) {
+      newErrors.healerName = 'Healer Name / ID is required (or type "Not captured").';
+    }
+
     if (!form.location.trim()) {
       newErrors.location = "Site of incident & landmarks is required.";
     }
@@ -214,9 +219,17 @@ export default function ActivatePage() {
       newErrors.anatomicalBiteSite = "Anatomical bite site is required.";
     }
 
+    if (form.suspectedSnake === "Other (Specify)" && !form.customSnake.trim()) {
+      newErrors.customSnake = "Please specify the suspected snake name.";
+    }
+
     const ageNum = Number(form.patientAge);
-    if (!form.patientAge || isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
-      newErrors.patientAge = "Patient age is required (e.g. 0.5 to 120).";
+    if (!form.patientAge || isNaN(ageNum) || ageNum < 0) {
+      newErrors.patientAge = "Patient age is required.";
+    } else if (form.ageUnit === "months" && ageNum > 23) {
+      newErrors.patientAge = "Max 23 for Months (use Years for age ≥ 2).";
+    } else if (form.ageUnit === "years" && ageNum > 120) {
+      newErrors.patientAge = "Patient age cannot exceed 120 years.";
     }
 
     setErrors(newErrors);
@@ -245,13 +258,18 @@ export default function ActivatePage() {
           ? `${form.patientAge} mo`
           : `${form.patientAge}`;
 
+      const effectiveSnake =
+        form.suspectedSnake === "Other (Specify)"
+          ? form.customSnake.trim() || "Other Unidentified Snake"
+          : form.suspectedSnake.trim() || "Unknown / Not Identified";
+
       // Strictly sanitized payload matching database schema
       const payload = {
         location: formattedLocation,
         latitude: form.latitude ? Number(form.latitude) : undefined,
         longitude: form.longitude ? Number(form.longitude) : undefined,
         biteTime: form.biteTime,
-        suspectedSnake: form.suspectedSnake.trim() || "Unknown / Not Identified",
+        suspectedSnake: effectiveSnake,
         patientAge: Number(form.patientAge),
         ageUnit: form.ageUnit,
         anatomicalBiteSite: form.anatomicalBiteSite,
@@ -283,7 +301,7 @@ export default function ActivatePage() {
             longitude: form.longitude || activeCountryConfig.lng,
             age: formattedAgeDisplay,
             sex: form.patientSex || "male",
-            snake: form.suspectedSnake || "West African Carpet Viper (Echis ocellatus)",
+            snake: effectiveSnake,
             biteSite: form.anatomicalBiteSite,
             initiator: form.initiatorRole,
             healer: healerValue,
@@ -313,6 +331,10 @@ export default function ActivatePage() {
         const healerValue = form.referredByHealer
           ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
           : null;
+        const effectiveSnake =
+          form.suspectedSnake === "Other (Specify)"
+            ? form.customSnake.trim() || "Other Unidentified Snake"
+            : form.suspectedSnake.trim() || "Unknown / Not Identified";
 
         localStorage.setItem(
           "bite2care_demo_data",
@@ -323,7 +345,7 @@ export default function ActivatePage() {
             longitude: form.longitude || activeCountryConfig.lng,
             age: formattedAgeDisplay || "28",
             sex: form.patientSex || "male",
-            snake: form.suspectedSnake || "West African Carpet Viper (Echis ocellatus)",
+            snake: effectiveSnake,
             biteSite: form.anatomicalBiteSite,
             initiator: form.initiatorRole,
             healer: healerValue,
@@ -551,17 +573,25 @@ export default function ActivatePage() {
                   {form.referredByHealer && (
                     <div className="pt-2 border-t border-amber-200/80 animate-fadeIn">
                       <label htmlFor="healerName" className="block text-xs font-semibold text-slate-800 mb-1">
-                        Healer Name / ID
+                        Healer Name / ID <span className="text-red-500">*</span>
                       </label>
                       <input
                         id="healerName"
                         name="healerName"
                         type="text"
-                        placeholder="e.g. Baba Musa (Keffi Ward Registry #TH-402)"
+                        required
+                        placeholder='Enter name, or type "Not captured"'
                         value={form.healerName}
                         onChange={handleWebChange}
-                        className="w-full border border-slate-300 rounded-md p-2.5 bg-white text-slate-900 text-xs shadow-sm focus:ring-2 focus:ring-brand-teal-700 focus:outline-none font-medium"
+                        className={`w-full border rounded-md p-2.5 bg-white text-slate-900 text-xs shadow-sm focus:ring-2 focus:ring-brand-teal-700 focus:outline-none font-medium ${
+                          errors.healerName ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                        }`}
                       />
+                      {errors.healerName && (
+                        <p className="mt-1 text-xs text-red-600 font-semibold">
+                          {errors.healerName}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -706,7 +736,7 @@ export default function ActivatePage() {
                   )}
                 </div>
 
-                {/* Anatomical Bite Site (Point 6) */}
+                {/* Anatomical Bite Site (Point 1) */}
                 <div>
                   <label
                     htmlFor="anatomicalBiteSite"
@@ -728,6 +758,7 @@ export default function ActivatePage() {
                     <option value="Upper Limb">Upper Limb (Hand / Wrist / Arm)</option>
                     <option value="Head/Neck">Head / Neck (High Alert)</option>
                     <option value="Torso">Torso / Abdomen / Back</option>
+                    <option value="Buttocks / Perineum">Buttocks / Perineum</option>
                     <option value="Unknown">Unknown / Hidden</option>
                   </select>
                   {errors.anatomicalBiteSite && (
@@ -737,7 +768,7 @@ export default function ActivatePage() {
                   )}
                 </div>
 
-                {/* Suspected Snake Species Dropdown (Standard native select matching other form fields) */}
+                {/* Suspected Snake Species Dropdown (Standard native select with Other option) */}
                 <div>
                   <label
                     htmlFor="suspectedSnake"
@@ -761,15 +792,45 @@ export default function ActivatePage() {
                     <option value="Black Mamba (Dendroaspis polylepis)">Black Mamba (Dendroaspis polylepis)</option>
                     <option value="Spitting Cobra (Naja nigricollis)">Spitting Cobra (Naja nigricollis)</option>
                     <option value="Common Krait (Bungarus caeruleus)">Common Krait (Bungarus caeruleus)</option>
+                    <option value="Other (Specify)">Other (Specify)</option>
                   </select>
                   {errors.suspectedSnake && (
                     <p className="mt-1 text-xs text-red-600 font-semibold">
                       {errors.suspectedSnake}
                     </p>
                   )}
+
+                  {/* Conditional Custom Snake Input (Point 4) */}
+                  {form.suspectedSnake === "Other (Specify)" && (
+                    <div className="mt-2.5 animate-fadeIn">
+                      <label
+                        htmlFor="customSnake"
+                        className="block text-xs font-semibold text-slate-800 mb-1"
+                      >
+                        Specify Snake Name / Description <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="customSnake"
+                        name="customSnake"
+                        type="text"
+                        required
+                        placeholder="Type suspected snake name..."
+                        value={form.customSnake}
+                        onChange={handleWebChange}
+                        className={`w-full border rounded-md p-2.5 bg-white text-slate-900 text-xs shadow-sm focus:ring-2 focus:ring-brand-teal-700 focus:outline-none font-medium ${
+                          errors.customSnake ? "border-red-500 bg-red-50/20" : "border-slate-300"
+                        }`}
+                      />
+                      {errors.customSnake && (
+                        <p className="mt-1 text-xs text-red-600 font-semibold">
+                          {errors.customSnake}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Patient Demographics & Age Input */}
+                {/* Patient Demographics & Age Input (Point 3) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label
@@ -784,7 +845,7 @@ export default function ActivatePage() {
                         type="number"
                         name="patientAge"
                         min="0"
-                        max="120"
+                        max={form.ageUnit === "months" ? 23 : 120}
                         required
                         placeholder="e.g. 25"
                         value={form.patientAge}
@@ -803,6 +864,7 @@ export default function ActivatePage() {
                         <option value="months">Months</option>
                       </select>
                     </div>
+                    <span className="text-xs text-gray-500 block mt-1">Max 23 for Months</span>
                     {errors.patientAge && (
                       <p className="mt-1 text-xs text-red-600 font-semibold">
                         {errors.patientAge}
