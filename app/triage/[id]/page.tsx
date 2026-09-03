@@ -161,6 +161,7 @@ export default function TriagePage({ params }: TriagePageProps) {
     location: string;
     country: string;
     age: string;
+    ageUnit?: string;
     sex: string;
     snake: string;
     initiator?: string;
@@ -169,6 +170,7 @@ export default function TriagePage({ params }: TriagePageProps) {
     location: "Yam farm 2km north of Keffi market",
     country: "Nigeria",
     age: "28",
+    ageUnit: "Years",
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
     initiator: "Remote Dispatcher",
@@ -179,7 +181,12 @@ export default function TriagePage({ params }: TriagePageProps) {
     try {
       const saved = localStorage.getItem("bite2care_demo_data");
       if (saved) {
-        setDemoData(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.age && typeof parsed.age === "string" && parsed.age.includes("mo")) {
+          parsed.age = parsed.age.replace(/\s*mo/gi, "").trim();
+          if (!parsed.ageUnit) parsed.ageUnit = "Months";
+        }
+        setDemoData(parsed);
       }
     } catch (e) {}
   }, []);
@@ -216,7 +223,9 @@ export default function TriagePage({ params }: TriagePageProps) {
           <div className="mb-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-700">
             <div>
               <span className="text-slate-500 block text-[11px]">Victim Demographics:</span>
-              <span className="font-bold text-slate-900">{demoData.age} yrs &bull; {demoData.sex.toUpperCase()}</span>
+              <span className="font-bold text-slate-900">
+                {demoData.age} {demoData.ageUnit === 'Months' ? 'months' : 'yrs'} &bull; {demoData.sex.toUpperCase()}
+              </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Incident Location:</span>

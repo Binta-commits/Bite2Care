@@ -24,10 +24,22 @@ export default function ManagePage({ params }: ManagePageProps) {
   const [callingDriver, setCallingDriver] = useState(false);
 
   // Dynamic Patient Demo Data State
-  const [demoData, setDemoData] = useState({
+  const [demoData, setDemoData] = useState<{
+    location: string;
+    country: string;
+    age: string;
+    ageUnit?: string;
+    sex: string;
+    snake: string;
+    initiator?: string;
+    healer?: string | null;
+    clinicalOutcome?: string;
+    outcomeNotes?: string;
+  }>({
     location: "Yam farm 2km north of Keffi market",
     country: "Nigeria",
     age: "28",
+    ageUnit: "Years",
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
   });
@@ -36,7 +48,12 @@ export default function ManagePage({ params }: ManagePageProps) {
     try {
       const saved = localStorage.getItem("bite2care_demo_data");
       if (saved) {
-        setDemoData(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.age && typeof parsed.age === "string" && parsed.age.includes("mo")) {
+          parsed.age = parsed.age.replace(/\s*mo/gi, "").trim();
+          if (!parsed.ageUnit) parsed.ageUnit = "Months";
+        }
+        setDemoData(parsed);
       }
     } catch (e) {}
   }, []);
@@ -392,7 +409,7 @@ export default function ManagePage({ params }: ManagePageProps) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Age / Sex:</span>
                 <span className="font-semibold text-slate-900">
-                  {demoData.age} yrs / {demoData.sex.toLowerCase()}
+                  {demoData.age} {demoData.ageUnit === 'Months' ? 'months' : 'yrs'} / {demoData.sex.toLowerCase()}
                 </span>
               </div>
               <div className="flex justify-between">

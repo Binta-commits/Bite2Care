@@ -115,10 +115,18 @@ export default function MatchPage({ params }: MatchPageProps) {
     }, 800);
   };
 
-  const [demoData, setDemoData] = useState({
+  const [demoData, setDemoData] = useState<{
+    location: string;
+    country: string;
+    age: string;
+    ageUnit?: string;
+    sex: string;
+    snake: string;
+  }>({
     location: "Yam farm 2km north of Keffi market",
     country: "Nigeria",
     age: "28",
+    ageUnit: "Years",
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
   });
@@ -128,7 +136,12 @@ export default function MatchPage({ params }: MatchPageProps) {
     try {
       const saved = localStorage.getItem("bite2care_demo_data");
       if (saved) {
-        setDemoData(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.age && typeof parsed.age === "string" && parsed.age.includes("mo")) {
+          parsed.age = parsed.age.replace(/\s*mo/gi, "").trim();
+          if (!parsed.ageUnit) parsed.ageUnit = "Months";
+        }
+        setDemoData(parsed);
       }
     } catch (e) {}
   }, []);
@@ -169,7 +182,7 @@ export default function MatchPage({ params }: MatchPageProps) {
             <span className="font-medium text-slate-800">{demoData.location}, {demoData.country}</span>
           </div>
           <div className="flex items-center gap-3 text-slate-600">
-            <span><strong>Victim:</strong> {demoData.age} yrs / {demoData.sex.toLowerCase()}</span>
+            <span><strong>Victim:</strong> {demoData.age} {demoData.ageUnit === 'Months' ? 'months' : 'yrs'} / {demoData.sex.toLowerCase()}</span>
             <span><strong>Snake:</strong> {demoData.snake}</span>
           </div>
         </div>

@@ -291,6 +291,8 @@ export default function ActivatePage() {
         const healerValue = form.referredByHealer
           ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
           : null;
+        const savedAgeUnit = form.ageUnit === "months" ? "Months" : "Years";
+        const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
 
         localStorage.setItem(
           "bite2care_demo_data",
@@ -299,7 +301,8 @@ export default function ActivatePage() {
             country: form.country,
             latitude: form.latitude || activeCountryConfig.lat,
             longitude: form.longitude || activeCountryConfig.lng,
-            age: formattedAgeDisplay,
+            age: savedAge,
+            ageUnit: savedAgeUnit,
             sex: form.patientSex || "male",
             snake: effectiveSnake,
             biteSite: form.anatomicalBiteSite,
@@ -324,10 +327,8 @@ export default function ActivatePage() {
       // Save to localStorage on fallback as well
       try {
         const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
-        const formattedAgeDisplay =
-          form.ageUnit === "months"
-            ? `${form.patientAge} mo`
-            : `${form.patientAge}`;
+        const savedAgeUnit = form.ageUnit === "months" ? "Months" : "Years";
+        const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
         const healerValue = form.referredByHealer
           ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
           : null;
@@ -343,7 +344,8 @@ export default function ActivatePage() {
             country: form.country,
             latitude: form.latitude || activeCountryConfig.lat,
             longitude: form.longitude || activeCountryConfig.lng,
-            age: formattedAgeDisplay || "28",
+            age: savedAge,
+            ageUnit: savedAgeUnit,
             sex: form.patientSex || "male",
             snake: effectiveSnake,
             biteSite: form.anatomicalBiteSite,
