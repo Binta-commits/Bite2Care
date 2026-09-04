@@ -291,10 +291,9 @@ export default function ActivatePage() {
           : null;
         const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
 
-        const resolvedAgeUnit =
+        const rawAgeUnit =
           (typeof document !== "undefined" &&
-            (document.getElementById("ageUnit") as HTMLSelectElement)?.value) ||
-          ageUnit ||
+            (document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value) ||
           "Years";
 
         const demoPayload = {
@@ -303,7 +302,7 @@ export default function ActivatePage() {
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
           age: savedAge,
-          ageUnit: resolvedAgeUnit,
+          ageUnit: rawAgeUnit,
           sex: form.patientSex || "male",
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
@@ -339,10 +338,9 @@ export default function ActivatePage() {
             ? form.customSnake.trim() || "Other Unidentified Snake"
             : form.suspectedSnake.trim() || "Unknown / Not Identified";
 
-        const resolvedAgeUnit =
+        const rawAgeUnit =
           (typeof document !== "undefined" &&
-            (document.getElementById("ageUnit") as HTMLSelectElement)?.value) ||
-          ageUnit ||
+            (document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value) ||
           "Years";
 
         const demoPayload = {
@@ -351,7 +349,7 @@ export default function ActivatePage() {
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
           age: savedAge,
-          ageUnit: resolvedAgeUnit,
+          ageUnit: rawAgeUnit,
           sex: form.patientSex || "male",
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
@@ -865,13 +863,9 @@ export default function ActivatePage() {
                         }`}
                       />
                       <select
-                        id="ageUnit"
+                        id="ageUnitDropdown"
                         name="ageUnit"
-                        value={ageUnit}
-                        onChange={(e) => {
-                          setAgeUnit(e.target.value);
-                          setForm((prev) => ({ ...prev, ageUnit: e.target.value }));
-                        }}
+                        defaultValue="Years"
                         className="w-24 border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-slate-50 text-slate-900 shadow-sm text-xs font-semibold"
                       >
                         <option value="Years">Years</option>
