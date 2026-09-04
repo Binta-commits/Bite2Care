@@ -291,22 +291,28 @@ export default function ActivatePage() {
           : null;
         const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
 
-        localStorage.setItem(
-          "bite2care_demo_data",
-          JSON.stringify({
-            location: form.location.trim() || activeCountryConfig.defaultLoc,
-            country: form.country,
-            latitude: form.latitude || activeCountryConfig.lat,
-            longitude: form.longitude || activeCountryConfig.lng,
-            age: savedAge,
-            ageUnit: ageUnit,
-            sex: form.patientSex || "male",
-            snake: effectiveSnake,
-            biteSite: form.anatomicalBiteSite,
-            initiator: form.initiatorRole,
-            healer: healerValue,
-          })
-        );
+        const resolvedAgeUnit =
+          (typeof document !== "undefined" &&
+            (document.getElementById("ageUnit") as HTMLSelectElement)?.value) ||
+          ageUnit ||
+          "Years";
+
+        const demoPayload = {
+          location: form.location.trim() || activeCountryConfig.defaultLoc,
+          country: form.country,
+          latitude: form.latitude || activeCountryConfig.lat,
+          longitude: form.longitude || activeCountryConfig.lng,
+          age: savedAge,
+          ageUnit: resolvedAgeUnit,
+          sex: form.patientSex || "male",
+          snake: effectiveSnake,
+          biteSite: form.anatomicalBiteSite,
+          initiator: form.initiatorRole,
+          healer: healerValue,
+        };
+
+        console.log("Data saved:", demoPayload);
+        localStorage.setItem("bite2care_demo_data", JSON.stringify(demoPayload));
       } catch (err) {}
 
       if (json.success && json.id) {
@@ -333,22 +339,28 @@ export default function ActivatePage() {
             ? form.customSnake.trim() || "Other Unidentified Snake"
             : form.suspectedSnake.trim() || "Unknown / Not Identified";
 
-        localStorage.setItem(
-          "bite2care_demo_data",
-          JSON.stringify({
-            location: form.location.trim() || activeCountryConfig.defaultLoc,
-            country: form.country,
-            latitude: form.latitude || activeCountryConfig.lat,
-            longitude: form.longitude || activeCountryConfig.lng,
-            age: savedAge,
-            ageUnit: ageUnit,
-            sex: form.patientSex || "male",
-            snake: effectiveSnake,
-            biteSite: form.anatomicalBiteSite,
-            initiator: form.initiatorRole,
-            healer: healerValue,
-          })
-        );
+        const resolvedAgeUnit =
+          (typeof document !== "undefined" &&
+            (document.getElementById("ageUnit") as HTMLSelectElement)?.value) ||
+          ageUnit ||
+          "Years";
+
+        const demoPayload = {
+          location: form.location.trim() || activeCountryConfig.defaultLoc,
+          country: form.country,
+          latitude: form.latitude || activeCountryConfig.lat,
+          longitude: form.longitude || activeCountryConfig.lng,
+          age: savedAge,
+          ageUnit: resolvedAgeUnit,
+          sex: form.patientSex || "male",
+          snake: effectiveSnake,
+          biteSite: form.anatomicalBiteSite,
+          initiator: form.initiatorRole,
+          healer: healerValue,
+        };
+
+        console.log("Data saved:", demoPayload);
+        localStorage.setItem("bite2care_demo_data", JSON.stringify(demoPayload));
       } catch (e) {}
 
       // Seamless presentation fallback to prevent blocking
