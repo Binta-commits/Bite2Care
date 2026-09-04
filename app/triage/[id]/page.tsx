@@ -231,7 +231,7 @@ export default function TriagePage({ params }: TriagePageProps) {
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Pregnancy Status:</span>
-              <span className="font-bold text-slate-900">{demoData?.pregnancy}</span>
+              <span className="font-bold text-slate-900">{demoData?.pregnancy || 'Not Specified'}</span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Incident Location:</span>

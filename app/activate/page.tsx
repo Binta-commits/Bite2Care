@@ -94,10 +94,10 @@ export default function ActivatePage() {
     ageUnit: "Years",
     anatomicalBiteSite: "Lower Limb",
     patientSex: "male",
-    pregnancyStatus: "N/A (Male)",
+    pregnancyStatus: "N/A (Male Patient)",
   });
 
-  const [pregnancyStatus, setPregnancyStatus] = useState("Not Pregnant");
+  const [pregnancy, setPregnancy] = useState("Not Pregnant");
 
   // Simulated Telecom Network Geolocation State
   const [fetchingLoc, setFetchingLoc] = useState(false);
@@ -166,17 +166,18 @@ export default function ActivatePage() {
         setForm((prev) => ({
           ...prev,
           patientSex: value,
-          pregnancyStatus: "N/A (Male)",
+          pregnancyStatus: "N/A (Male Patient)",
         }));
+        setPregnancy("N/A (Male Patient)");
       } else if (value === "female") {
         setForm((prev) => ({
           ...prev,
           patientSex: value,
           pregnancyStatus:
-            pregnancyStatus === "N/A (Male)" ? "Not Pregnant" : pregnancyStatus,
+            pregnancy === "N/A (Male Patient)" ? "Not Pregnant" : pregnancy,
         }));
-        if (pregnancyStatus === "N/A (Male)") {
-          setPregnancyStatus("Not Pregnant");
+        if (pregnancy === "N/A (Male Patient)") {
+          setPregnancy("Not Pregnant");
         }
       } else {
         setForm((prev) => ({
@@ -309,12 +310,6 @@ export default function ActivatePage() {
         const finalAgeString =
           rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
-        const rawPregnancy =
-          (typeof document !== "undefined" &&
-            (document.getElementById("pregnancyStatus") as HTMLSelectElement)?.value) ||
-          pregnancyStatus ||
-          (form.patientSex === "male" ? "N/A (Male)" : "Not Pregnant");
-
         const finalPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
@@ -322,7 +317,7 @@ export default function ActivatePage() {
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
-          pregnancy: form.patientSex === "male" ? "N/A (Male)" : (pregnancyStatus || rawPregnancy),
+          pregnancy: pregnancy,
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
@@ -370,12 +365,6 @@ export default function ActivatePage() {
         const finalAgeString =
           rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
-        const rawPregnancy =
-          (typeof document !== "undefined" &&
-            (document.getElementById("pregnancyStatus") as HTMLSelectElement)?.value) ||
-          pregnancyStatus ||
-          (form.patientSex === "male" ? "N/A (Male)" : "Not Pregnant");
-
         const finalPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
@@ -383,7 +372,7 @@ export default function ActivatePage() {
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
-          pregnancy: form.patientSex === "male" ? "N/A (Male)" : (pregnancyStatus || rawPregnancy),
+          pregnancy: pregnancy,
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
@@ -935,41 +924,26 @@ export default function ActivatePage() {
 
                   <div>
                     <label
-                      htmlFor="pregnancyStatus"
+                      htmlFor="pregnancy"
                       className={`block text-sm font-medium mb-1 ${
                         form.patientSex === "male" ? "text-slate-400" : "text-slate-900"
                       }`}
                     >
                       Pregnancy Status
                     </label>
-                    <select
-                      id="pregnancyStatus"
-                      name="pregnancyStatus"
-                      value={form.patientSex === "male" ? "N/A (Male)" : pregnancyStatus}
-                      disabled={form.patientSex === "male"}
-                      onChange={(e) => {
-                        setPregnancyStatus(e.target.value);
-                        setForm((prev) => ({ ...prev, pregnancyStatus: e.target.value }));
-                      }}
-                      className={`w-full border rounded-md p-3 text-sm shadow-sm transition-colors ${
-                        form.patientSex === "male"
-                          ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
-                          : "bg-white border-slate-300 text-slate-900 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
-                      }`}
+                    <select 
+                      id="pregnancy"
+                      value={pregnancy} 
+                      onChange={(e) => setPregnancy(e.target.value)} 
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-teal-700"
                     >
-                      {form.patientSex === "male" ? (
-                        <option value="N/A (Male)">N/A (Male)</option>
-                      ) : (
-                        <>
-                          <option value="Not Pregnant">Not Pregnant</option>
-                          <option value="Pregnant">Pregnant</option>
-                          <option value="Unknown / Not Assessed">Unknown / Not Assessed</option>
-                        </>
-                      )}
+                      <option value="Not Pregnant">Not Pregnant</option>
+                      <option value="Pregnant">Pregnant</option>
+                      <option value="N/A (Male Patient)">N/A (Male Patient)</option>
                     </select>
                     {form.patientSex === "male" && (
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Disabled for male patients.
+                        Auto-assigned for male patients.
                       </p>
                     )}
                   </div>
