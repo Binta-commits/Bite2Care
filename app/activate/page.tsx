@@ -289,20 +289,27 @@ export default function ActivatePage() {
         const healerValue = form.referredByHealer
           ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
           : null;
-        const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
 
-        const rawAgeUnit =
+        const rawNumber =
           (typeof document !== "undefined" &&
-            (document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value) ||
+            (document.querySelector('input[type="number"]') as HTMLInputElement)?.value) ||
+          form.patientAge ||
+          "28";
+        const rawUnit =
+          (typeof document !== "undefined" &&
+            ((document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value ||
+              (document.querySelector('select:has(option[value="Years"])') as HTMLSelectElement)?.value)) ||
           "Years";
+
+        const finalAgeString =
+          rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
         const demoPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
-          age: savedAge,
-          ageUnit: rawAgeUnit,
+          age: finalAgeString,
           sex: form.patientSex || "male",
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
@@ -329,7 +336,6 @@ export default function ActivatePage() {
       // Save to localStorage on fallback as well
       try {
         const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
-        const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
         const healerValue = form.referredByHealer
           ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
           : null;
@@ -338,18 +344,26 @@ export default function ActivatePage() {
             ? form.customSnake.trim() || "Other Unidentified Snake"
             : form.suspectedSnake.trim() || "Unknown / Not Identified";
 
-        const rawAgeUnit =
+        const rawNumber =
           (typeof document !== "undefined" &&
-            (document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value) ||
+            (document.querySelector('input[type="number"]') as HTMLInputElement)?.value) ||
+          form.patientAge ||
+          "28";
+        const rawUnit =
+          (typeof document !== "undefined" &&
+            ((document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value ||
+              (document.querySelector('select:has(option[value="Years"])') as HTMLSelectElement)?.value)) ||
           "Years";
+
+        const finalAgeString =
+          rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
         const demoPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
-          age: savedAge,
-          ageUnit: rawAgeUnit,
+          age: finalAgeString,
           sex: form.patientSex || "male",
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,

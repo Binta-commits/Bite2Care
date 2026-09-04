@@ -9,13 +9,34 @@ export type Facility = {
   distanceKm?: number
 }
 
-export function rankFacilities(caseId: string, facilities: Facility[], clinicalAssessment: any) {
-  // If immediate bypass triggered, restrict to ICU/HDU facilities only
-  const immediateBypass = !!(clinicalAssessment && clinicalAssessment.layer1 && clinicalAssessment.layer1.immediateBypass)
+export function isPediatricAge(ageStr?: string | number, ageUnit?: string): boolean {
+  if (typeof ageStr === 'number') {
+    return ageUnit?.toLowerCase() === 'months' ? ageStr / 12 <= 16 : ageStr <= 16;
+  }
+  if (!ageStr) return false;
+  const s = String(ageStr).toLowerCase().trim();
+  if (s.includes('month') || s.includes('mo') || ageUnit?.toLowerCase() === 'months') {
+    const m = s.match(/(\d+(\.\d+)?)/);
+    const months = m ? parseFloat(m[1]) : 1;
+    return months / 12 <= 16;
+  }
+  const m = s.match(/(\d+(\.\d+)?)/);
+  if (m) {
+    const num = parseFloat(m[1]);
+    return num <= 16;
+  }
+  return false;
+}
+
+export function rankFacilities(caseId: string, facilities: Facility[], clinicalAssessment: any, patientDemographics?: { age?: string | number; ageUnit?: string }) {
+  // 16-Year Pediatric Clinical Safety Threshold (Immediate Bypass of Level 1 facilities)
+  const isPediatric = isPediatricAge(patientDemographics?.age, patientDemographics?.ageUnit);
+  const immediateBypass = !!(clinicalAssessment && clinicalAssessment.layer1 && clinicalAssessment.layer1.immediateBypass) || isPediatric;
 
   let candidates = facilities.slice()
-  if (immediateBypass) {
-    candidates = candidates.filter(f => f.hasIcuHdu)
+  if (immediateBypass || isPediatric) {
+    // Strictly filter out and reject Level 1 facilities; force Level 2 or Level 3 with ICU/HDU
+    candidates = candidates.filter(f => (f.capabilityLevel || 0) >= 2 && f.hasIcuHdu)
   }
 
   // Score facilities and detect reverse logistics opportunities

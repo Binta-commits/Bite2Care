@@ -409,7 +409,7 @@ export default function ManagePage({ params }: ManagePageProps) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Age / Sex:</span>
                 <span className="font-semibold text-slate-900">
-                  {demoData?.age} {demoData?.ageUnit === 'Months' ? 'months' : 'years'} / {demoData?.sex}
+                  {demoData?.age || 'Unknown'} / {demoData?.sex || 'Unknown'}
                 </span>
               </div>
               <div className="flex justify-between">

@@ -8,52 +8,153 @@ interface MatchPageProps {
   params: Promise<{ id: string }>;
 }
 
+export interface MatchFacilityOption {
+  type: string;
+  mode: string;
+  facilityId?: string;
+  facilityName?: string;
+  destinationFacilityId?: string;
+  destinationFacilityName?: string;
+  capabilityLevel: number;
+  hasIcuHdu: boolean;
+  antivenomStatus: string;
+  quantity: number;
+  distanceKm: number;
+  patientEtaMinutes?: number;
+  rendezvousEtaMinutes?: number;
+  donorFacilityId?: string;
+  donorFacilityName?: string;
+  donorQuantity?: number;
+  donorEtaMinutes?: number;
+  courierStatus?: string;
+  etaMinutes?: number;
+  staleness?: { isStale: boolean };
+}
+
+export interface RankedMatchItem {
+  score: number;
+  isPediatricRecommended?: boolean;
+  option: MatchFacilityOption;
+}
+
+// Helper function to evaluate the 16-Year Pediatric Clinical Safety Threshold
+function isPediatricAge(ageStr?: string | number, ageUnit?: string): boolean {
+  if (typeof ageStr === "number") {
+    return ageUnit?.toLowerCase() === "months" ? ageStr / 12 <= 16 : ageStr <= 16;
+  }
+  if (!ageStr) return false;
+  const s = String(ageStr).toLowerCase().trim();
+  if (s.includes("month") || s.includes("mo") || ageUnit?.toLowerCase() === "months") {
+    const m = s.match(/(\d+(\.\d+)?)/);
+    const months = m ? parseFloat(m[1]) : 1;
+    return months / 12 <= 16;
+  }
+  const m = s.match(/(\d+(\.\d+)?)/);
+  if (m) {
+    const num = parseFloat(m[1]);
+    return num <= 16;
+  }
+  return false;
+}
+
+const ADULT_RANKED_OPTIONS: RankedMatchItem[] = [
+  {
+    score: 95,
+    option: {
+      type: "Option B",
+      mode: "Dynamic Treatment Rendezvous (Recommended)",
+      destinationFacilityId: "fac-b",
+      destinationFacilityName: "Facility B (Primary Healthcare Centre)",
+      capabilityLevel: 1,
+      hasIcuHdu: false,
+      antivenomStatus: "IN_TRANSIT (6 Vials arriving in 38m)",
+      quantity: 6,
+      distanceKm: 19,
+      patientEtaMinutes: 35,
+      rendezvousEtaMinutes: 41,
+      donorFacilityId: "fac-c",
+      donorFacilityName: "Regional Antivenom Depository (Hub C)",
+      donorQuantity: 6,
+      donorEtaMinutes: 38,
+      courierStatus: "Courier Dispatched - ETA to Facility B: 38m",
+      staleness: { isStale: false },
+    },
+  },
+  {
+    score: 72,
+    option: {
+      type: "Option A",
+      mode: "Direct Transit to Stocked Hospital",
+      facilityId: "fac-a",
+      facilityName: "Federal Medical Centre (Central Specialist Hospital)",
+      capabilityLevel: 3,
+      hasIcuHdu: true,
+      antivenomStatus: "IN_STOCK",
+      quantity: 14,
+      distanceKm: 68,
+      etaMinutes: 78,
+      staleness: { isStale: false },
+    },
+  },
+];
+
+const PEDIATRIC_RANKED_OPTIONS: RankedMatchItem[] = [
+  {
+    score: 98,
+    isPediatricRecommended: true,
+    option: {
+      type: "Option A",
+      mode: "Direct Referral to Level 3 Specialist Centre (Pediatric Protocol)",
+      facilityId: "fac-a",
+      facilityName: "Federal Medical Centre (Central Specialist Hospital)",
+      capabilityLevel: 3,
+      hasIcuHdu: true,
+      antivenomStatus: "IN_STOCK",
+      quantity: 14,
+      distanceKm: 68,
+      etaMinutes: 78,
+      staleness: { isStale: false },
+    },
+  },
+  {
+    score: 82,
+    isPediatricRecommended: false,
+    option: {
+      type: "Option B",
+      mode: "Secondary Referral to Level 2 Regional Hospital",
+      facilityId: "fac-d",
+      facilityName: "State General Hospital & Emergency Centre",
+      capabilityLevel: 2,
+      hasIcuHdu: true,
+      antivenomStatus: "IN_STOCK",
+      quantity: 8,
+      distanceKm: 42,
+      etaMinutes: 49,
+      staleness: { isStale: false },
+    },
+  },
+];
+
 export default function MatchPage({ params }: MatchPageProps) {
   const unwrappedParams = use(params);
   const caseId = unwrappedParams.id;
   const router = useRouter();
 
-  // Hardcoded mock rendezvous state continuing the visual story
-  const [ranked, setRanked] = useState<any[]>([
-    {
-      score: 95,
-      option: {
-        type: "Option B",
-        mode: "Dynamic Treatment Rendezvous (Recommended)",
-        destinationFacilityId: "fac-b",
-        destinationFacilityName: "Facility B (Primary Healthcare Centre)",
-        capabilityLevel: 1,
-        hasIcuHdu: false,
-        antivenomStatus: "IN_TRANSIT (6 Vials arriving in 38m)",
-        quantity: 6,
-        distanceKm: 19,
-        patientEtaMinutes: 35,
-        rendezvousEtaMinutes: 41,
-        donorFacilityId: "fac-c",
-        donorFacilityName: "Regional Antivenom Depository (Hub C)",
-        donorQuantity: 6,
-        donorEtaMinutes: 38,
-        courierStatus: "Courier Dispatched - ETA to Facility B: 38m",
-        staleness: { isStale: false },
-      },
-    },
-    {
-      score: 72,
-      option: {
-        type: "Option A",
-        mode: "Direct Transit to Stocked Hospital",
-        facilityId: "fac-a",
-        facilityName: "Federal Medical Centre (Central Specialist Hospital)",
-        capabilityLevel: 2,
-        hasIcuHdu: true,
-        antivenomStatus: "IN_STOCK",
-        quantity: 14,
-        distanceKm: 68,
-        etaMinutes: 78,
-        staleness: { isStale: false },
-      },
-    },
-  ]);
+  const [demoData, setDemoData] = useState<{
+    location: string;
+    country: string;
+    age: string;
+    ageUnit?: string;
+    sex: string;
+    snake: string;
+  }>({
+    location: "Yam farm 2km north of Keffi market",
+    country: "Nigeria",
+    age: "28",
+    ageUnit: "Years",
+    sex: "male",
+    snake: "West African Carpet Viper (Echis ocellatus)",
+  });
 
   const [loading, setLoading] = useState(false);
   const [alertingId, setAlertingId] = useState<string | null>(null);
@@ -62,10 +163,22 @@ export default function MatchPage({ params }: MatchPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [escalating, setEscalating] = useState(false);
 
-  // Pre-load default rendezvous selection for presentation readiness
+  // Load persisted demo data from localStorage on mount
   useEffect(() => {
-    // Automatically pre-set Option B in awaiting state if desired or ready to alert
-  }, [caseId]);
+    try {
+      const saved = localStorage.getItem("bite2care_demo_data");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setDemoData(parsed);
+      }
+    } catch (e) {}
+  }, []);
+
+  // Strict 16-Year Pediatric Clinical Safety Gate Evaluation
+  const isPediatric = isPediatricAge(demoData?.age, demoData?.ageUnit);
+
+  // Matching algorithm strictly filters Level 1 facilities if isPediatric is true
+  const ranked = isPediatric ? PEDIATRIC_RANKED_OPTIONS : ADULT_RANKED_OPTIONS;
 
   // Step 1: Send Pre-Arrival Alert & Request Acceptance (Pure Simulation)
   const requestAcceptance = (optionItem: any) => {
@@ -90,7 +203,7 @@ export default function MatchPage({ params }: MatchPageProps) {
     const facilityName =
       awaitingOption.option.facilityName ||
       awaitingOption.option.destinationFacilityName ||
-      "Facility B (Primary Healthcare Centre)";
+      "Federal Medical Centre (Central Specialist Hospital)";
 
     setAlertingId(facilityId);
 
@@ -114,37 +227,6 @@ export default function MatchPage({ params }: MatchPageProps) {
       router.push(`/cases/${caseId}/manage`);
     }, 800);
   };
-
-  const [demoData, setDemoData] = useState<{
-    location: string;
-    country: string;
-    age: string;
-    ageUnit?: string;
-    sex: string;
-    snake: string;
-  }>({
-    location: "Yam farm 2km north of Keffi market",
-    country: "Nigeria",
-    age: "28",
-    ageUnit: "Years",
-    sex: "male",
-    snake: "West African Carpet Viper (Echis ocellatus)",
-  });
-
-  // Load persisted demo data from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bite2care_demo_data");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.age && typeof parsed.age === "string" && parsed.age.includes("mo")) {
-          parsed.age = parsed.age.replace(/\s*mo/gi, "").trim();
-          if (!parsed.ageUnit) parsed.ageUnit = "Months";
-        }
-        setDemoData(parsed);
-      }
-    } catch (e) {}
-  }, []);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6">
@@ -182,7 +264,7 @@ export default function MatchPage({ params }: MatchPageProps) {
             <span className="font-medium text-slate-800">{demoData.location}, {demoData.country}</span>
           </div>
           <div className="flex items-center gap-3 text-slate-600">
-            <span><strong>Victim:</strong> {demoData?.age} {demoData?.ageUnit === 'Months' ? 'months' : 'years'} / {demoData?.sex}</span>
+            <span><strong>Victim:</strong> {demoData?.age || 'Unknown'} / {demoData?.sex || 'Unknown'}</span>
             <span><strong>Snake:</strong> {demoData.snake}</span>
           </div>
         </div>
@@ -228,7 +310,9 @@ export default function MatchPage({ params }: MatchPageProps) {
                     {awaitingOption.option.facilityName ||
                       awaitingOption.option.destinationFacilityName}
                   </strong>
-                  . Stock transfer from Hub C synchronized.
+                  {isPediatric
+                    ? ". Pediatric ICU & antivenom emergency resuscitation team notified."
+                    : ". Stock transfer from Hub C synchronized."}
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2.5">
@@ -291,17 +375,37 @@ export default function MatchPage({ params }: MatchPageProps) {
               </button>
             </div>
 
+            {/* Pediatric Safety Override Alert Banner */}
+            {isPediatric && (
+              <div className="p-4 bg-amber-500/15 border-2 border-amber-500 rounded-xl flex items-center justify-between gap-3 text-amber-950 shadow-md animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl flex-shrink-0">⚠️</span>
+                  <div>
+                    <div className="text-sm font-extrabold tracking-wide uppercase text-amber-950">
+                      ⚠️ PEDIATRIC OVERRIDE (≤16): Immediate high-level care required.
+                    </div>
+                    <p className="text-xs text-amber-900 font-medium mt-0.5">
+                      Patient age (<strong className="font-bold">{demoData?.age || 'Pediatric'}</strong>) is within the high-risk pediatric cohort (&le; 16 years). Level 1 Primary Healthcare Centres are strictly bypassed. Destination forced to a Level 3 Specialist Centre with verified ICU capability and on-site antivenom.
+                    </p>
+                  </div>
+                </div>
+                <span className="hidden sm:inline-flex px-3 py-1 rounded-full text-[10px] font-extrabold bg-amber-600 text-white uppercase tracking-wider whitespace-nowrap shadow-sm">
+                  Level 1 PHC Bypassed
+                </span>
+              </div>
+            )}
+
             {ranked.map((r, idx) => {
               const opt = r.option;
+              const isTop = idx === 0;
               const isOptionA = opt.type === "Option A";
               const isOptionB = opt.type === "Option B";
-              const isTop = isOptionB || idx === 0;
 
               return (
                 <div
                   key={idx}
                   className={`p-6 rounded-2xl border transition-all ${
-                    isOptionB
+                    isTop
                       ? "bg-brand-teal-50/50 border-2 border-brand-teal-800 ring-2 ring-brand-teal-700/20 shadow-md"
                       : "bg-white border-slate-300 shadow-sm hover:border-slate-400"
                   }`}
@@ -312,7 +416,7 @@ export default function MatchPage({ params }: MatchPageProps) {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
                           className={`px-3 py-0.5 rounded-full text-xs font-bold ${
-                            isOptionB
+                            isTop
                               ? "bg-brand-teal-900 text-brand-gold-500"
                               : "bg-slate-200 text-slate-800"
                           }`}
@@ -320,9 +424,15 @@ export default function MatchPage({ params }: MatchPageProps) {
                           {opt.type}: {opt.mode}
                         </span>
 
-                        {isOptionB && (
+                        {isTop && !isPediatric && (
                           <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900 shadow-sm">
                             ⭐ Fastest Safe Pathway (-37 Mins Saved)
+                          </span>
+                        )}
+
+                        {isTop && isPediatric && (
+                          <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900 shadow-sm">
+                            ⭐ Primary Recommended Pathway (ICU &amp; High-Level Care)
                           </span>
                         )}
 
@@ -336,8 +446,8 @@ export default function MatchPage({ params }: MatchPageProps) {
                         {opt.facilityName || opt.destinationFacilityName}
                       </h3>
 
-                      {/* OPTION B: DYNAMIC RENDEZVOUS DUAL CARD BREAKDOWN */}
-                      {isOptionB && (
+                      {/* DYNAMIC RENDEZVOUS DUAL CARD BREAKDOWN (Used when donorFacility is present) */}
+                      {opt.destinationFacilityName && opt.donorFacilityName && (
                         <div className="space-y-3 pt-1">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {/* Primary Destination Sub-Card (Facility B) */}
@@ -418,25 +528,43 @@ export default function MatchPage({ params }: MatchPageProps) {
                         </div>
                       )}
 
-                      {/* OPTION A: DIRECT REFERRAL BREAKDOWN */}
-                      {isOptionA && (
-                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                          <div>
-                            <span className="text-slate-500 block text-[11px]">Capability Tier</span>
-                            <span className="font-bold text-slate-900">Level 3 - Fully Ready (ICU &amp; 20WBCT)</span>
+                      {/* DIRECT REFERRAL BREAKDOWN */}
+                      {(!opt.destinationFacilityName || !opt.donorFacilityName) && (
+                        <div className="space-y-3 pt-1">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Capability Tier</span>
+                              <span className="font-bold text-slate-900">
+                                {opt.capabilityLevel === 3
+                                  ? "Level 3 - Fully Ready (ICU & 20WBCT)"
+                                  : "Level 2 - Comprehensive Ready (ICU & Surgery)"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Antivenom Stock</span>
+                              <span className="font-bold text-emerald-700">
+                                {opt.antivenomStatus} ({opt.quantity} Vials on-site)
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block text-[11px]">Transit Distance &amp; ETA</span>
+                              <span className="font-bold text-slate-900">
+                                {opt.distanceKm} km &bull; {opt.etaMinutes} Minutes
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-slate-500 block text-[11px]">Antivenom Stock</span>
-                            <span className="font-bold text-emerald-700">
-                              {opt.antivenomStatus} ({opt.quantity} Vials on-site)
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-slate-500 block text-[11px]">Transit Distance &amp; ETA</span>
-                            <span className="font-bold text-slate-900">
-                              {opt.distanceKm} km &bull; {opt.etaMinutes} Minutes
-                            </span>
-                          </div>
+
+                          {isPediatric && isTop && (
+                            <div className="p-3 bg-brand-teal-900 text-white rounded-lg flex items-center justify-between text-xs font-medium">
+                              <span className="flex items-center gap-1.5">
+                                <span className="text-brand-gold-500 font-bold">🛡️ Clinical Protocol Override:</span>
+                                <span>Pediatric patient routed directly to Level 3 ICU facility</span>
+                              </span>
+                              <span className="text-brand-gold-500 font-bold">
+                                Verified Level 3 Ready
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -448,7 +576,7 @@ export default function MatchPage({ params }: MatchPageProps) {
                         onClick={() => requestAcceptance(r)}
                         disabled={!!alertingId}
                         className={`w-full sm:w-auto font-bold py-3 px-6 rounded-lg transition-all shadow-md cursor-pointer text-xs flex items-center justify-center gap-2 ${
-                          isOptionB
+                          isTop
                             ? "bg-brand-teal-900 hover:bg-brand-teal-800 text-brand-gold-500 border border-brand-gold-500/50"
                             : "bg-slate-800 hover:bg-slate-700 text-white"
                         }`}

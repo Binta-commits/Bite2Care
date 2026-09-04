@@ -224,7 +224,7 @@ export default function TriagePage({ params }: TriagePageProps) {
             <div>
               <span className="text-slate-500 block text-[11px]">Victim Demographics:</span>
               <span className="font-bold text-slate-900">
-                {demoData?.age} {demoData?.ageUnit === 'Months' ? 'months' : 'years'} &bull; {demoData?.sex?.toUpperCase() || 'MALE'}
+                {demoData?.age || 'Unknown'} &bull; {(demoData?.sex || 'Unknown').toUpperCase()}
               </span>
             </div>
             <div>
