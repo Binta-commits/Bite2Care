@@ -90,7 +90,7 @@ export default function ActivatePage() {
     suspectedSnake: "Unknown / Not Identified",
     customSnake: "",
     patientAge: "",
-    ageUnit: "years",
+    ageUnit: "Years",
     anatomicalBiteSite: "Lower Limb",
     patientSex: "male",
     pregnancyStatus: "N/A",
@@ -224,11 +224,13 @@ export default function ActivatePage() {
     }
 
     const ageNum = Number(form.patientAge);
+    const isMonths = form.ageUnit?.toLowerCase() === "months";
+    const isYears = form.ageUnit?.toLowerCase() === "years";
     if (!form.patientAge || isNaN(ageNum) || ageNum < 0) {
       newErrors.patientAge = "Patient age is required.";
-    } else if (form.ageUnit === "months" && ageNum > 23) {
+    } else if (isMonths && ageNum > 23) {
       newErrors.patientAge = "Max 23 for Months (use Years for age ≥ 2).";
-    } else if (form.ageUnit === "years" && ageNum > 120) {
+    } else if (isYears && ageNum > 120) {
       newErrors.patientAge = "Patient age cannot exceed 120 years.";
     }
 
@@ -847,7 +849,7 @@ export default function ActivatePage() {
                         type="number"
                         name="patientAge"
                         min="0"
-                        max={form.ageUnit === "months" ? 23 : 120}
+                        max={form.ageUnit?.toLowerCase() === "months" ? 23 : 120}
                         required
                         placeholder="e.g. 25"
                         value={form.patientAge}
@@ -857,13 +859,14 @@ export default function ActivatePage() {
                         }`}
                       />
                       <select
+                        id="ageUnit"
                         name="ageUnit"
                         value={form.ageUnit}
                         onChange={handleWebChange}
                         className="w-24 border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-slate-50 text-slate-900 shadow-sm text-xs font-semibold"
                       >
-                        <option value="years">Years</option>
-                        <option value="months">Months</option>
+                        <option value="Years">Years</option>
+                        <option value="Months">Months</option>
                       </select>
                     </div>
                     <span className="text-xs text-gray-500 block mt-1">Max 23 for Months</span>
