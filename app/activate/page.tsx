@@ -97,6 +97,8 @@ export default function ActivatePage() {
     pregnancyStatus: "N/A (Male)",
   });
 
+  const [pregnancyStatus, setPregnancyStatus] = useState("Not Pregnant");
+
   // Simulated Telecom Network Geolocation State
   const [fetchingLoc, setFetchingLoc] = useState(false);
   const [locCaptured, setLocCaptured] = useState(false);
@@ -171,10 +173,11 @@ export default function ActivatePage() {
           ...prev,
           patientSex: value,
           pregnancyStatus:
-            prev.pregnancyStatus === "N/A (Male)" || prev.pregnancyStatus === "N/A"
-              ? "Unknown / Not Assessed"
-              : prev.pregnancyStatus,
+            pregnancyStatus === "N/A (Male)" ? "Not Pregnant" : pregnancyStatus,
         }));
+        if (pregnancyStatus === "N/A (Male)") {
+          setPregnancyStatus("Not Pregnant");
+        }
       } else {
         setForm((prev) => ({
           ...prev,
@@ -309,25 +312,25 @@ export default function ActivatePage() {
         const rawPregnancy =
           (typeof document !== "undefined" &&
             (document.getElementById("pregnancyStatus") as HTMLSelectElement)?.value) ||
-          (form.patientSex === "male" ? "N/A (Male)" : form.pregnancyStatus) ||
-          "Unknown";
+          pregnancyStatus ||
+          (form.patientSex === "male" ? "N/A (Male)" : "Not Pregnant");
 
-        const demoPayload = {
+        const finalPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
-          pregnancy: rawPregnancy,
+          pregnancy: form.patientSex === "male" ? "N/A (Male)" : (pregnancyStatus || rawPregnancy),
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
           healer: healerValue,
         };
 
-        console.log("Data saved:", demoPayload);
-        localStorage.setItem("bite2care_demo_data", JSON.stringify(demoPayload));
+        console.log("Data saved:", finalPayload);
+        localStorage.setItem("bite2care_demo_data", JSON.stringify(finalPayload));
       } catch (err) {}
 
       if (json.success && json.id) {
@@ -370,25 +373,25 @@ export default function ActivatePage() {
         const rawPregnancy =
           (typeof document !== "undefined" &&
             (document.getElementById("pregnancyStatus") as HTMLSelectElement)?.value) ||
-          (form.patientSex === "male" ? "N/A (Male)" : form.pregnancyStatus) ||
-          "Unknown";
+          pregnancyStatus ||
+          (form.patientSex === "male" ? "N/A (Male)" : "Not Pregnant");
 
-        const demoPayload = {
+        const finalPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
-          pregnancy: rawPregnancy,
+          pregnancy: form.patientSex === "male" ? "N/A (Male)" : (pregnancyStatus || rawPregnancy),
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
           healer: healerValue,
         };
 
-        console.log("Data saved:", demoPayload);
-        localStorage.setItem("bite2care_demo_data", JSON.stringify(demoPayload));
+        console.log("Data saved:", finalPayload);
+        localStorage.setItem("bite2care_demo_data", JSON.stringify(finalPayload));
       } catch (e) {}
 
       // Seamless presentation fallback to prevent blocking
@@ -942,9 +945,12 @@ export default function ActivatePage() {
                     <select
                       id="pregnancyStatus"
                       name="pregnancyStatus"
-                      value={form.pregnancyStatus}
+                      value={form.patientSex === "male" ? "N/A (Male)" : pregnancyStatus}
                       disabled={form.patientSex === "male"}
-                      onChange={handleWebChange}
+                      onChange={(e) => {
+                        setPregnancyStatus(e.target.value);
+                        setForm((prev) => ({ ...prev, pregnancyStatus: e.target.value }));
+                      }}
                       className={`w-full border rounded-md p-3 text-sm shadow-sm transition-colors ${
                         form.patientSex === "male"
                           ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed"
@@ -955,9 +961,9 @@ export default function ActivatePage() {
                         <option value="N/A (Male)">N/A (Male)</option>
                       ) : (
                         <>
-                          <option value="Unknown / Not Assessed">Unknown / Not Assessed</option>
                           <option value="Not Pregnant">Not Pregnant</option>
                           <option value="Pregnant">Pregnant</option>
+                          <option value="Unknown / Not Assessed">Unknown / Not Assessed</option>
                         </>
                       )}
                     </select>

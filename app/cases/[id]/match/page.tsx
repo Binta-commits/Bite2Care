@@ -267,7 +267,7 @@ export default function MatchPage({ params }: MatchPageProps) {
           </div>
           <div className="flex items-center gap-3 text-slate-600 flex-wrap">
             <span><strong>Victim:</strong> {demoData?.age || 'Unknown'} / {demoData?.sex || 'Unknown'}</span>
-            <span><strong>Pregnancy:</strong> {demoData?.pregnancy || 'Unknown'}</span>
+            <span><strong>Pregnancy:</strong> {demoData?.pregnancy}</span>
             <span><strong>Snake:</strong> {demoData.snake}</span>
           </div>
         </div>
