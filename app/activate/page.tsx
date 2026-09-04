@@ -76,6 +76,7 @@ const POPULAR_LANDMARKS = [
 export default function ActivatePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"web" | "ussd">("web");
+  const [ageUnit, setAgeUnit] = useState<string>("Years");
 
   // Web Form State
   const [form, setForm] = useState({
@@ -224,8 +225,8 @@ export default function ActivatePage() {
     }
 
     const ageNum = Number(form.patientAge);
-    const isMonths = form.ageUnit?.toLowerCase() === "months";
-    const isYears = form.ageUnit?.toLowerCase() === "years";
+    const isMonths = (ageUnit || form.ageUnit)?.toLowerCase() === "months";
+    const isYears = (ageUnit || form.ageUnit)?.toLowerCase() === "years";
     if (!form.patientAge || isNaN(ageNum) || ageNum < 0) {
       newErrors.patientAge = "Patient age is required.";
     } else if (isMonths && ageNum > 23) {
@@ -255,11 +256,6 @@ export default function ActivatePage() {
         ? locText
         : `[${form.country}] ${locText}`;
 
-      const formattedAgeDisplay =
-        form.ageUnit === "months"
-          ? `${form.patientAge} mo`
-          : `${form.patientAge}`;
-
       const effectiveSnake =
         form.suspectedSnake === "Other (Specify)"
           ? form.customSnake.trim() || "Other Unidentified Snake"
@@ -273,7 +269,7 @@ export default function ActivatePage() {
         biteTime: form.biteTime,
         suspectedSnake: effectiveSnake,
         patientAge: Number(form.patientAge),
-        ageUnit: form.ageUnit,
+        ageUnit: ageUnit,
         anatomicalBiteSite: form.anatomicalBiteSite,
         patientSex: form.patientSex,
         pregnancyStatus: form.patientSex === "male" ? "N/A" : form.pregnancyStatus,
@@ -293,7 +289,6 @@ export default function ActivatePage() {
         const healerValue = form.referredByHealer
           ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
           : null;
-        const savedAgeUnit = form.ageUnit === "months" ? "Months" : "Years";
         const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
 
         localStorage.setItem(
@@ -304,7 +299,7 @@ export default function ActivatePage() {
             latitude: form.latitude || activeCountryConfig.lat,
             longitude: form.longitude || activeCountryConfig.lng,
             age: savedAge,
-            ageUnit: savedAgeUnit,
+            ageUnit: ageUnit,
             sex: form.patientSex || "male",
             snake: effectiveSnake,
             biteSite: form.anatomicalBiteSite,
@@ -329,7 +324,6 @@ export default function ActivatePage() {
       // Save to localStorage on fallback as well
       try {
         const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
-        const savedAgeUnit = form.ageUnit === "months" ? "Months" : "Years";
         const savedAge = String(form.patientAge || "28").replace(/\s*(mo|months|yrs|years)/gi, "").trim() || "28";
         const healerValue = form.referredByHealer
           ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
@@ -347,7 +341,7 @@ export default function ActivatePage() {
             latitude: form.latitude || activeCountryConfig.lat,
             longitude: form.longitude || activeCountryConfig.lng,
             age: savedAge,
-            ageUnit: savedAgeUnit,
+            ageUnit: ageUnit,
             sex: form.patientSex || "male",
             snake: effectiveSnake,
             biteSite: form.anatomicalBiteSite,
@@ -849,7 +843,7 @@ export default function ActivatePage() {
                         type="number"
                         name="patientAge"
                         min="0"
-                        max={form.ageUnit?.toLowerCase() === "months" ? 23 : 120}
+                        max={ageUnit.toLowerCase() === "months" ? 23 : 120}
                         required
                         placeholder="e.g. 25"
                         value={form.patientAge}
@@ -861,8 +855,11 @@ export default function ActivatePage() {
                       <select
                         id="ageUnit"
                         name="ageUnit"
-                        value={form.ageUnit}
-                        onChange={handleWebChange}
+                        value={ageUnit}
+                        onChange={(e) => {
+                          setAgeUnit(e.target.value);
+                          setForm((prev) => ({ ...prev, ageUnit: e.target.value }));
+                        }}
                         className="w-24 border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-slate-50 text-slate-900 shadow-sm text-xs font-semibold"
                       >
                         <option value="Years">Years</option>

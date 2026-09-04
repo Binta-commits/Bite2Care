@@ -182,7 +182,7 @@ export default function MatchPage({ params }: MatchPageProps) {
             <span className="font-medium text-slate-800">{demoData.location}, {demoData.country}</span>
           </div>
           <div className="flex items-center gap-3 text-slate-600">
-            <span><strong>Victim:</strong> {demoData.age} {demoData.ageUnit === 'Months' ? 'months' : 'yrs'} / {demoData.sex.toLowerCase()}</span>
+            <span><strong>Victim:</strong> {demoData.age} {(demoData.ageUnit || 'years') === 'Months' ? 'months' : 'years'} / {demoData.sex.toLowerCase()}</span>
             <span><strong>Snake:</strong> {demoData.snake}</span>
           </div>
         </div>
