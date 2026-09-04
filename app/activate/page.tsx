@@ -94,7 +94,7 @@ export default function ActivatePage() {
     ageUnit: "Years",
     anatomicalBiteSite: "Lower Limb",
     patientSex: "male",
-    pregnancyStatus: "N/A",
+    pregnancyStatus: "N/A (Male)",
   });
 
   // Simulated Telecom Network Geolocation State
@@ -164,14 +164,16 @@ export default function ActivatePage() {
         setForm((prev) => ({
           ...prev,
           patientSex: value,
-          pregnancyStatus: "N/A",
+          pregnancyStatus: "N/A (Male)",
         }));
       } else if (value === "female") {
         setForm((prev) => ({
           ...prev,
           patientSex: value,
           pregnancyStatus:
-            prev.pregnancyStatus === "N/A" ? "unknown" : prev.pregnancyStatus,
+            prev.pregnancyStatus === "N/A (Male)" || prev.pregnancyStatus === "N/A"
+              ? "Unknown / Not Assessed"
+              : prev.pregnancyStatus,
         }));
       } else {
         setForm((prev) => ({
@@ -304,6 +306,12 @@ export default function ActivatePage() {
         const finalAgeString =
           rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
+        const rawPregnancy =
+          (typeof document !== "undefined" &&
+            (document.getElementById("pregnancyStatus") as HTMLSelectElement)?.value) ||
+          (form.patientSex === "male" ? "N/A (Male)" : form.pregnancyStatus) ||
+          "Unknown";
+
         const demoPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
@@ -311,6 +319,7 @@ export default function ActivatePage() {
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
+          pregnancy: rawPregnancy,
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
@@ -358,6 +367,12 @@ export default function ActivatePage() {
         const finalAgeString =
           rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
+        const rawPregnancy =
+          (typeof document !== "undefined" &&
+            (document.getElementById("pregnancyStatus") as HTMLSelectElement)?.value) ||
+          (form.patientSex === "male" ? "N/A (Male)" : form.pregnancyStatus) ||
+          "Unknown";
+
         const demoPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
@@ -365,6 +380,7 @@ export default function ActivatePage() {
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
+          pregnancy: rawPregnancy,
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
@@ -936,12 +952,12 @@ export default function ActivatePage() {
                       }`}
                     >
                       {form.patientSex === "male" ? (
-                        <option value="N/A">N/A (Male Patient)</option>
+                        <option value="N/A (Male)">N/A (Male)</option>
                       ) : (
                         <>
-                          <option value="unknown">Unknown / Not Assessed</option>
-                          <option value="not_pregnant">Not Pregnant</option>
-                          <option value="pregnant">Pregnant</option>
+                          <option value="Unknown / Not Assessed">Unknown / Not Assessed</option>
+                          <option value="Not Pregnant">Not Pregnant</option>
+                          <option value="Pregnant">Pregnant</option>
                         </>
                       )}
                     </select>

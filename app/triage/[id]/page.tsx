@@ -163,6 +163,7 @@ export default function TriagePage({ params }: TriagePageProps) {
     age: string;
     ageUnit?: string;
     sex: string;
+    pregnancy?: string;
     snake: string;
     initiator?: string;
     healer?: string | null;
@@ -172,6 +173,7 @@ export default function TriagePage({ params }: TriagePageProps) {
     age: "28",
     ageUnit: "Years",
     sex: "male",
+    pregnancy: "N/A (Male)",
     snake: "West African Carpet Viper (Echis ocellatus)",
     initiator: "Remote Dispatcher",
     healer: null,
@@ -220,7 +222,7 @@ export default function TriagePage({ params }: TriagePageProps) {
           </div>
 
           {/* Patient Clinical Intake Summary Bar */}
-          <div className="mb-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-700">
+          <div className="mb-4 p-3.5 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs text-slate-700">
             <div>
               <span className="text-slate-500 block text-[11px]">Victim Demographics:</span>
               <span className="font-bold text-slate-900">
@@ -228,11 +230,15 @@ export default function TriagePage({ params }: TriagePageProps) {
               </span>
             </div>
             <div>
+              <span className="text-slate-500 block text-[11px]">Pregnancy Status:</span>
+              <span className="font-bold text-slate-900">{demoData?.pregnancy || 'Unknown'}</span>
+            </div>
+            <div>
               <span className="text-slate-500 block text-[11px]">Incident Location:</span>
               <span className="font-bold text-slate-900">{demoData.location}, {demoData.country}</span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">Suspected Snake Species:</span>
+              <span className="text-slate-500 block text-[11px]">Suspected Snake:</span>
               <span className="font-bold text-brand-teal-900">{demoData.snake}</span>
             </div>
           </div>

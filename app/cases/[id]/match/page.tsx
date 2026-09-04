@@ -147,6 +147,7 @@ export default function MatchPage({ params }: MatchPageProps) {
     ageUnit?: string;
     sex: string;
     snake: string;
+    pregnancy?: string;
   }>({
     location: "Yam farm 2km north of Keffi market",
     country: "Nigeria",
@@ -154,6 +155,7 @@ export default function MatchPage({ params }: MatchPageProps) {
     ageUnit: "Years",
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
+    pregnancy: "N/A (Male)",
   });
 
   const [loading, setLoading] = useState(false);
@@ -263,8 +265,9 @@ export default function MatchPage({ params }: MatchPageProps) {
             <span className="font-bold text-slate-900">📍 Incident Site:</span>
             <span className="font-medium text-slate-800">{demoData.location}, {demoData.country}</span>
           </div>
-          <div className="flex items-center gap-3 text-slate-600">
+          <div className="flex items-center gap-3 text-slate-600 flex-wrap">
             <span><strong>Victim:</strong> {demoData?.age || 'Unknown'} / {demoData?.sex || 'Unknown'}</span>
+            <span><strong>Pregnancy:</strong> {demoData?.pregnancy || 'Unknown'}</span>
             <span><strong>Snake:</strong> {demoData.snake}</span>
           </div>
         </div>

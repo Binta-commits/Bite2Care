@@ -31,6 +31,7 @@ export default function ManagePage({ params }: ManagePageProps) {
     ageUnit?: string;
     sex: string;
     snake: string;
+    pregnancy?: string;
     initiator?: string;
     healer?: string | null;
     clinicalOutcome?: string;
@@ -42,6 +43,7 @@ export default function ManagePage({ params }: ManagePageProps) {
     ageUnit: "Years",
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
+    pregnancy: "N/A (Male)",
   });
 
   useEffect(() => {
@@ -418,7 +420,7 @@ export default function ManagePage({ params }: ManagePageProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Pregnancy:</span>
-                <span className="font-semibold text-slate-900">{caseRec.pregnancyStatus || "N/A"}</span>
+                <span className="font-semibold text-slate-900">{demoData?.pregnancy || 'Unknown'}</span>
               </div>
             </div>
           </div>
