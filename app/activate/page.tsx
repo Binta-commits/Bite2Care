@@ -310,6 +310,12 @@ export default function ActivatePage() {
         const finalAgeString =
           rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
+        const finalPregnancyStatus =
+          (typeof document !== "undefined" &&
+            (document.getElementById("hiddenPregnancy") as HTMLInputElement)?.value) ||
+          pregnancy ||
+          "Not Pregnant";
+
         const finalPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
@@ -317,7 +323,7 @@ export default function ActivatePage() {
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
-          pregnancy: pregnancy,
+          pregnancy: finalPregnancyStatus,
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
@@ -365,6 +371,12 @@ export default function ActivatePage() {
         const finalAgeString =
           rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
 
+        const finalPregnancyStatus =
+          (typeof document !== "undefined" &&
+            (document.getElementById("hiddenPregnancy") as HTMLInputElement)?.value) ||
+          pregnancy ||
+          "Not Pregnant";
+
         const finalPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
           country: form.country,
@@ -372,7 +384,7 @@ export default function ActivatePage() {
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
           sex: form.patientSex || "male",
-          pregnancy: pregnancy,
+          pregnancy: finalPregnancyStatus,
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
@@ -931,6 +943,7 @@ export default function ActivatePage() {
                     >
                       Pregnancy Status
                     </label>
+                    <input type="hidden" id="hiddenPregnancy" name="hiddenPregnancy" value={pregnancy} />
                     <select 
                       id="pregnancy"
                       value={pregnancy} 

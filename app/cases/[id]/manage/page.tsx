@@ -420,7 +420,7 @@ export default function ManagePage({ params }: ManagePageProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Pregnancy:</span>
-                <span className="font-semibold text-slate-900">{demoData?.pregnancy || 'Not Specified'}</span>
+                <span className="font-semibold text-slate-900">{demoData?.pregnancy || 'Unspecified'}</span>
               </div>
             </div>
           </div>
