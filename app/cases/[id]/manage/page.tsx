@@ -420,7 +420,7 @@ export default function ManagePage({ params }: ManagePageProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Pregnancy:</span>
-                <span className="font-semibold text-slate-900">{demoData?.pregnancy || 'Unspecified'}</span>
+                <span className="font-semibold text-slate-900">{demoData?.pregnancy}</span>
               </div>
             </div>
           </div>
@@ -485,6 +485,9 @@ export default function ManagePage({ params }: ManagePageProps) {
                   )}
                 </button>
               </div>
+              <p className="text-[11px] text-slate-500 italic mt-1.5 leading-relaxed">
+                *Logistics routing is provided for operational support. Final patient admission and inter-facility transfer remain at the discretion of the attending clinician.*
+              </p>
             </div>
           )}
 

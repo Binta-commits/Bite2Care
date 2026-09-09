@@ -28,13 +28,16 @@ export function isPediatricAge(ageStr?: string | number, ageUnit?: string): bool
   return false;
 }
 
-export function rankFacilities(caseId: string, facilities: Facility[], clinicalAssessment: any, patientDemographics?: { age?: string | number; ageUnit?: string }) {
-  // 16-Year Pediatric Clinical Safety Threshold (Immediate Bypass of Level 1 facilities)
+export function rankFacilities(caseId: string, facilities: Facility[], clinicalAssessment: any, patientDemographics?: { age?: string | number; ageUnit?: string; pregnancy?: string; hasRedFlags?: boolean }) {
+  // 16-Year Pediatric, Pregnancy & Red Flag Clinical Safety Threshold (Immediate Bypass of Level 1 facilities)
   const isPediatric = isPediatricAge(patientDemographics?.age, patientDemographics?.ageUnit);
-  const immediateBypass = !!(clinicalAssessment && clinicalAssessment.layer1 && clinicalAssessment.layer1.immediateBypass) || isPediatric;
+  const isPregnant = patientDemographics?.pregnancy === 'Pregnant';
+  const hasRedFlags = Boolean(patientDemographics?.hasRedFlags);
+  const isHighRisk = isPediatric || isPregnant || hasRedFlags;
+  const immediateBypass = !!(clinicalAssessment && clinicalAssessment.layer1 && clinicalAssessment.layer1.immediateBypass) || isHighRisk;
 
   let candidates = facilities.slice()
-  if (immediateBypass || isPediatric) {
+  if (immediateBypass || isHighRisk) {
     // Strictly filter out and reject Level 1 facilities; force Level 2 or Level 3 with ICU/HDU
     candidates = candidates.filter(f => (f.capabilityLevel || 0) >= 2 && f.hasIcuHdu)
   }

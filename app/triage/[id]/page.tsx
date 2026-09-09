@@ -29,14 +29,6 @@ export default function TriagePage({ params }: TriagePageProps) {
     acvpu: "A",
     temperature: "36.8",
 
-    // DART domains
-    pulmonary: 0,
-    cardiovascular: 0,
-    localWound: 1,
-    gi: 0,
-    haematological: 1,
-    cns: 0,
-
     // WHO antivenom indicators
     wbctBleeding: true,
     neurotoxicity: false,
@@ -584,50 +576,11 @@ export default function TriagePage({ params }: TriagePageProps) {
             </div>
           </section>
 
-          {/* Section 3: DART Domains */}
-          <section className="bg-slate-50 p-5 rounded-lg border border-slate-200">
-            <h2 className="text-base font-semibold text-slate-900 mb-1 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block"></span>
-              Layer 3: DART Clinical Domains (Score 0 – 4)
-            </h2>
-            <p className="text-xs text-slate-600 mb-4">
-              Grade envenomation severity per organ system from 0 (none) to 4 (severe).
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {[
-                { name: "pulmonary", label: "Pulmonary" },
-                { name: "cardiovascular", label: "Cardiovascular" },
-                { name: "localWound", label: "Local Wound" },
-                { name: "gi", label: "Gastrointestinal" },
-                { name: "haematological", label: "Haematological" },
-                { name: "cns", label: "Central Nervous" },
-              ].map((domain) => (
-                <div key={domain.name}>
-                  <label className="block text-xs font-semibold text-slate-900 mb-1">
-                    {domain.label}
-                  </label>
-                  <select
-                    name={domain.name}
-                    value={form[domain.name]}
-                    onChange={handleChange}
-                    className="w-full border border-slate-300 rounded-md p-2.5 focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 text-sm font-medium"
-                  >
-                    <option value={0}>0 — None</option>
-                    <option value={1}>1 — Mild</option>
-                    <option value={2}>2 — Moderate</option>
-                    <option value={3}>3 — Severe</option>
-                    <option value={4}>4 — Critical</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Section 4: WHO Antivenom Indicators */}
+          {/* Section 3: WHO Antivenom Indicators */}
           <section className="bg-blue-50/60 p-5 rounded-lg border border-blue-200">
             <h2 className="text-base font-semibold text-blue-950 mb-1 flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-blue-600 inline-block"></span>
-              Layer 4: WHO Antivenom Indication Criteria
+              Layer 3: WHO Antivenom Indication Criteria
             </h2>
             <p className="text-xs text-blue-800 mb-4">
               Check all clinical indications present according to WHO Snakebite Management Guidelines.

@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 type Inputs = any
 
@@ -52,16 +52,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     // Layer 2: NEWS2 Scoring
     const news2Outputs = scoreNEWS2(inputs)
 
-    // Layer 3: Snake-Specific (DART and WHO antivenom indicators)
-    const dartDomains = ['pulmonary', 'cardiovascular', 'localWound', 'gi', 'haematological', 'cns']
-    const dartScores: any = {}
-    let dartTotal = 0
-    for (const d of dartDomains) {
-      const v = Number(inputs[d] ?? 0)
-      dartScores[d] = v
-      dartTotal += v
-    }
-
+    // Layer 3: Snake-Specific (WHO antivenom indicators)
     const whoIndicators = {
       wbctBleeding: !!inputs.wbctBleeding,
       neurotoxicity: !!inputs.neurotoxicity,
@@ -80,7 +71,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const outputs = {
       layer1: { bypassTriggers, immediateBypass },
       layer2: news2Outputs,
-      layer3: { dartScores, dartTotal, whoIndicators, whoAntivenomIndication },
+      layer3: { whoIndicators, whoAntivenomIndication },
       recommendation,
     }
 

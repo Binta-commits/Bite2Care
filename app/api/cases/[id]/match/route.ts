@@ -10,6 +10,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const { searchParams } = new URL(req.url)
     const ageParam = searchParams.get('age') || undefined
     const ageUnitParam = searchParams.get('ageUnit') || undefined
+    const pregnancyParam = searchParams.get('pregnancy') || undefined
+    const redFlagsParam = searchParams.get('hasRedFlags') === 'true'
 
     const isPediatric = ageParam
       ? ageParam.toLowerCase().includes('month') ||
@@ -17,9 +19,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         ageUnitParam?.toLowerCase() === 'months' ||
         parseFloat(ageParam) <= 16
       : false
+    const isPregnant = pregnancyParam === 'Pregnant'
+    const hasRedFlags = redFlagsParam
+    const isHighRisk = isPediatric || isPregnant || hasRedFlags
 
-    // Stratified ranking respecting the 16-Year Pediatric Clinical Safety Gate
-    const ranked = isPediatric
+    // Stratified ranking respecting the 16-Year Pediatric, Pregnancy & Red Flag Clinical Safety Gate
+    const ranked = isHighRisk
       ? [
           {
             score: 98,

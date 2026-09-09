@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PathwayComparison from "@/components/PathwayComparison";
@@ -77,6 +77,16 @@ export default function ActivatePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"web" | "ussd">("web");
   const [ageUnit, setAgeUnit] = useState<string>("Years");
+  const [sex, setSex] = useState<string>("Male");
+  const [pregnancy, setPregnancy] = useState<string>("N/A (Male Patient)");
+  const [hasRedFlags, setHasRedFlags] = useState<boolean>(false);
+
+  // Auto-disable and force pregnancy to N/A for male patients
+  useEffect(() => {
+    if (sex === "Male" || sex === "male") {
+      setPregnancy("N/A (Male Patient)");
+    }
+  }, [sex]);
 
   // Web Form State
   const [form, setForm] = useState({
@@ -96,8 +106,6 @@ export default function ActivatePage() {
     patientSex: "male",
     pregnancyStatus: "N/A (Male Patient)",
   });
-
-  const [pregnancy, setPregnancy] = useState("Not Pregnant");
 
   // Simulated Telecom Network Geolocation State
   const [fetchingLoc, setFetchingLoc] = useState(false);
@@ -162,14 +170,15 @@ export default function ActivatePage() {
       }));
       setLocCaptured(false);
     } else if (name === "patientSex") {
-      if (value === "male") {
+      setSex(value);
+      if (value === "male" || value === "Male") {
         setForm((prev) => ({
           ...prev,
           patientSex: value,
           pregnancyStatus: "N/A (Male Patient)",
         }));
         setPregnancy("N/A (Male Patient)");
-      } else if (value === "female") {
+      } else if (value === "female" || value === "Female") {
         setForm((prev) => ({
           ...prev,
           patientSex: value,
@@ -277,10 +286,44 @@ export default function ActivatePage() {
         patientAge: Number(form.patientAge),
         ageUnit: ageUnit,
         anatomicalBiteSite: form.anatomicalBiteSite,
-        patientSex: form.patientSex,
-        pregnancyStatus: form.patientSex === "male" ? "N/A" : form.pregnancyStatus,
+        patientSex: sex || form.patientSex,
+        pregnancy: pregnancy,
+        pregnancyStatus: pregnancy,
+        hasRedFlags: hasRedFlags,
         channel: "WEB",
       };
+
+      // Offline-first save to localStorage for instant client persistence
+      const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
+      const healerValue = form.referredByHealer
+        ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
+        : null;
+
+      const finalAgeString = form.patientAge
+        ? `${form.patientAge} ${(ageUnit || "Years").toLowerCase() === "months" ? "months" : "years"}`
+        : "28 years";
+
+      const finalPayload = {
+        location: form.location.trim() || activeCountryConfig.defaultLoc,
+        country: form.country,
+        latitude: form.latitude || activeCountryConfig.lat,
+        longitude: form.longitude || activeCountryConfig.lng,
+        age: finalAgeString,
+        ageUnit: ageUnit || "Years",
+        sex: sex || form.patientSex || "male",
+        pregnancy: pregnancy,
+        pregnancyStatus: pregnancy,
+        hasRedFlags: hasRedFlags,
+        snake: effectiveSnake,
+        biteSite: form.anatomicalBiteSite,
+        initiator: form.initiatorRole,
+        healer: healerValue,
+      };
+
+      console.log("Data saved:", finalPayload);
+      try {
+        localStorage.setItem("bite2care_demo_data", JSON.stringify(finalPayload));
+      } catch (e) {}
 
       const res = await fetch("/api/cases", {
         method: "POST",
@@ -289,62 +332,10 @@ export default function ActivatePage() {
       });
       const json = await res.json();
 
-      // Save to localStorage for demo persistence across all pages
-      try {
-        const activeCountryConfig = COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
-        const healerValue = form.referredByHealer
-          ? form.healerName.trim() || "Traditional Healer (Registered ID #TH-882)"
-          : null;
-
-        const rawNumber =
-          (typeof document !== "undefined" &&
-            (document.querySelector('input[type="number"]') as HTMLInputElement)?.value) ||
-          form.patientAge ||
-          "28";
-        const rawUnit =
-          (typeof document !== "undefined" &&
-            ((document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value ||
-              (document.querySelector('select:has(option[value="Years"])') as HTMLSelectElement)?.value)) ||
-          "Years";
-
-        const finalAgeString =
-          rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
-
-        const finalPregnancyStatus =
-          (typeof document !== "undefined" &&
-            (document.getElementById("hiddenPregnancy") as HTMLInputElement)?.value) ||
-          pregnancy ||
-          "Not Pregnant";
-
-        const finalPayload = {
-          location: form.location.trim() || activeCountryConfig.defaultLoc,
-          country: form.country,
-          latitude: form.latitude || activeCountryConfig.lat,
-          longitude: form.longitude || activeCountryConfig.lng,
-          age: finalAgeString,
-          sex: form.patientSex || "male",
-          pregnancy: finalPregnancyStatus,
-          snake: effectiveSnake,
-          biteSite: form.anatomicalBiteSite,
-          initiator: form.initiatorRole,
-          healer: healerValue,
-        };
-
-        console.log("Data saved:", finalPayload);
-        localStorage.setItem("bite2care_demo_data", JSON.stringify(finalPayload));
-      } catch (err) {}
-
-      if (json.success && json.id) {
-        setCreatedCaseId(json.id);
-        setCreatedChannel("WEB");
-        setErrors({});
-      } else {
-        // Robust fallback ID for presentation resilience
-        const fallbackId = `CASE-${Date.now().toString(36).toUpperCase()}`;
-        setCreatedCaseId(fallbackId);
-        setCreatedChannel("WEB");
-        setErrors({});
-      }
+      const newCaseId = json.caseId || json.id || `CASE-${Date.now().toString(36).toUpperCase()}`;
+      setCreatedCaseId(newCaseId);
+      setCreatedChannel("WEB");
+      setErrors({});
     } catch (err) {
       // Save to localStorage on fallback as well
       try {
@@ -357,25 +348,9 @@ export default function ActivatePage() {
             ? form.customSnake.trim() || "Other Unidentified Snake"
             : form.suspectedSnake.trim() || "Unknown / Not Identified";
 
-        const rawNumber =
-          (typeof document !== "undefined" &&
-            (document.querySelector('input[type="number"]') as HTMLInputElement)?.value) ||
-          form.patientAge ||
-          "28";
-        const rawUnit =
-          (typeof document !== "undefined" &&
-            ((document.getElementById("ageUnitDropdown") as HTMLSelectElement)?.value ||
-              (document.querySelector('select:has(option[value="Years"])') as HTMLSelectElement)?.value)) ||
-          "Years";
-
-        const finalAgeString =
-          rawNumber + " " + (rawUnit === "Months" ? "months" : "years");
-
-        const finalPregnancyStatus =
-          (typeof document !== "undefined" &&
-            (document.getElementById("hiddenPregnancy") as HTMLInputElement)?.value) ||
-          pregnancy ||
-          "Not Pregnant";
+        const finalAgeString = form.patientAge
+          ? `${form.patientAge} ${(ageUnit || "Years").toLowerCase() === "months" ? "months" : "years"}`
+          : "28 years";
 
         const finalPayload = {
           location: form.location.trim() || activeCountryConfig.defaultLoc,
@@ -383,8 +358,9 @@ export default function ActivatePage() {
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
-          sex: form.patientSex || "male",
-          pregnancy: finalPregnancyStatus,
+          sex: sex || form.patientSex || "male",
+          pregnancy: pregnancy,
+          hasRedFlags: hasRedFlags,
           snake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
@@ -872,6 +848,33 @@ export default function ActivatePage() {
                   )}
                 </div>
 
+                {/* Immediate Clinical Red Flags (Optional) */}
+                <div className="p-4 bg-red-50/70 border border-red-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-red-950 uppercase tracking-wide flex items-center gap-1.5">
+                      <span>⚠️</span>
+                      <span>Immediate Clinical Red Flags (Optional)</span>
+                    </label>
+                    <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded">
+                      High-Level Bypass
+                    </span>
+                  </div>
+                  <label className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-red-200 text-xs font-semibold text-slate-900 cursor-pointer hover:bg-red-50/40 transition-colors">
+                    <input
+                      type="checkbox"
+                      id="hasRedFlags"
+                      name="hasRedFlags"
+                      checked={hasRedFlags}
+                      onChange={(e) => setHasRedFlags(e.target.checked)}
+                      className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500"
+                    />
+                    <span>Airway / Respiratory Compromise or Visible Shock</span>
+                  </label>
+                  <p className="text-[11px] text-red-800">
+                    If checked, the facility matching system will automatically bypass Level 1 clinics and prioritize Level 2/3 centres with ICU capability.
+                  </p>
+                </div>
+
                 {/* Patient Demographics & Age Input (Point 3) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
@@ -924,8 +927,11 @@ export default function ActivatePage() {
                     <select
                       id="patientSex"
                       name="patientSex"
-                      value={form.patientSex}
-                      onChange={handleWebChange}
+                      value={sex}
+                      onChange={(e) => {
+                        setSex(e.target.value);
+                        handleWebChange(e);
+                      }}
                       className="w-full border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-white text-slate-900 shadow-sm text-sm"
                     >
                       <option value="male">Male</option>
@@ -938,23 +944,24 @@ export default function ActivatePage() {
                     <label
                       htmlFor="pregnancy"
                       className={`block text-sm font-medium mb-1 ${
-                        form.patientSex === "male" ? "text-slate-400" : "text-slate-900"
+                        (sex === "male" || sex === "Male") ? "text-slate-400" : "text-slate-900"
                       }`}
                     >
                       Pregnancy Status
                     </label>
-                    <input type="hidden" id="hiddenPregnancy" name="hiddenPregnancy" value={pregnancy} />
                     <select 
                       id="pregnancy"
+                      name="pregnancy"
                       value={pregnancy} 
                       onChange={(e) => setPregnancy(e.target.value)} 
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border-slate-300 bg-white text-slate-900 focus:ring-2 focus:ring-brand-teal-700"
+                      disabled={sex === "male" || sex === "Male"}
+                      className={`flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border-slate-300 text-slate-900 focus:ring-2 focus:ring-brand-teal-700 ${(sex === "male" || sex === "Male") ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white"}`}
                     >
                       <option value="Not Pregnant">Not Pregnant</option>
                       <option value="Pregnant">Pregnant</option>
                       <option value="N/A (Male Patient)">N/A (Male Patient)</option>
                     </select>
-                    {form.patientSex === "male" && (
+                    {(sex === "male" || sex === "Male") && (
                       <p className="text-[11px] text-slate-400 mt-1">
                         Auto-assigned for male patients.
                       </p>

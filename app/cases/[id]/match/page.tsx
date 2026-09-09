@@ -98,13 +98,13 @@ const ADULT_RANKED_OPTIONS: RankedMatchItem[] = [
   },
 ];
 
-const PEDIATRIC_RANKED_OPTIONS: RankedMatchItem[] = [
+const HIGH_RISK_RANKED_OPTIONS: RankedMatchItem[] = [
   {
     score: 98,
     isPediatricRecommended: true,
     option: {
       type: "Option A",
-      mode: "Direct Referral to Level 3 Specialist Centre (Pediatric Protocol)",
+      mode: "Direct Referral to Level 3 Specialist Centre (High-Risk Protocol)",
       facilityId: "fac-a",
       facilityName: "Federal Medical Centre (Central Specialist Hospital)",
       capabilityLevel: 3,
@@ -134,6 +134,7 @@ const PEDIATRIC_RANKED_OPTIONS: RankedMatchItem[] = [
     },
   },
 ];
+const PEDIATRIC_RANKED_OPTIONS = HIGH_RISK_RANKED_OPTIONS;
 
 export default function MatchPage({ params }: MatchPageProps) {
   const unwrappedParams = use(params);
@@ -148,6 +149,7 @@ export default function MatchPage({ params }: MatchPageProps) {
     sex: string;
     snake: string;
     pregnancy?: string;
+    hasRedFlags?: boolean;
   }>({
     location: "Yam farm 2km north of Keffi market",
     country: "Nigeria",
@@ -156,8 +158,10 @@ export default function MatchPage({ params }: MatchPageProps) {
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
     pregnancy: "N/A (Male)",
+    hasRedFlags: false,
   });
 
+  const [caseData, setCaseData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [alertingId, setAlertingId] = useState<string | null>(null);
   const [awaitingOption, setAwaitingOption] = useState<any | null>(null);
@@ -165,7 +169,7 @@ export default function MatchPage({ params }: MatchPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [escalating, setEscalating] = useState(false);
 
-  // Load persisted demo data from localStorage on mount
+  // Load persisted demo data from localStorage and case record from API
   useEffect(() => {
     try {
       const saved = localStorage.getItem("bite2care_demo_data");
@@ -174,13 +178,27 @@ export default function MatchPage({ params }: MatchPageProps) {
         setDemoData(parsed);
       }
     } catch (e) {}
-  }, []);
 
-  // Strict 16-Year Pediatric Clinical Safety Gate Evaluation
-  const isPediatric = isPediatricAge(demoData?.age, demoData?.ageUnit);
+    if (caseId) {
+      fetch(`/api/cases/${caseId}`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && json.case) {
+            setCaseData(json.case);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [caseId]);
 
-  // Matching algorithm strictly filters Level 1 facilities if isPediatric is true
-  const ranked = isPediatric ? PEDIATRIC_RANKED_OPTIONS : ADULT_RANKED_OPTIONS;
+  // Strict 16-Year Pediatric, Pregnancy & Red Flag Clinical Safety Gate Evaluation
+  const hasRedFlags = Boolean(demoData?.hasRedFlags === true || caseData?.hasRedFlags === true);
+  const isPediatric = isPediatricAge(caseData?.patientAge || demoData?.age, demoData?.ageUnit);
+  const isPregnant = (caseData?.pregnancy || caseData?.pregnancyStatus || demoData?.pregnancy) === "Pregnant";
+  const isHighRisk = isPediatric || isPregnant || hasRedFlags;
+
+  // Matching algorithm strictly filters Level 1 facilities if isPediatric, isPregnant, or hasRedFlags is true
+  const ranked = isHighRisk ? HIGH_RISK_RANKED_OPTIONS : ADULT_RANKED_OPTIONS;
 
   // Step 1: Send Pre-Arrival Alert & Request Acceptance (Pure Simulation)
   const requestAcceptance = (optionItem: any) => {
@@ -252,7 +270,7 @@ export default function MatchPage({ params }: MatchPageProps) {
             </Link>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Dynamic Treatment Rendezvous &amp; Facility Matching
+            Decision Support: Facility Matching &amp; Logistics Options
           </h1>
           <p className="text-sm text-slate-600 mt-1">
             Evaluating verified capability level, real-time antivenom stock, travel safety, and dynamic stock convergence.
@@ -313,8 +331,14 @@ export default function MatchPage({ params }: MatchPageProps) {
                     {awaitingOption.option.facilityName ||
                       awaitingOption.option.destinationFacilityName}
                   </strong>
-                  {isPediatric
-                    ? ". Pediatric ICU & antivenom emergency resuscitation team notified."
+                  {isHighRisk
+                    ? hasRedFlags
+                      ? ". Critical airway & shock emergency resuscitation team notified."
+                      : isPregnant && !isPediatric
+                      ? ". Obstetric & emergency resuscitation team notified."
+                      : isPregnant && isPediatric
+                      ? ". High-risk pediatric & obstetric emergency resuscitation team notified."
+                      : ". Pediatric ICU & antivenom emergency resuscitation team notified."
                     : ". Stock transfer from Hub C synchronized."}
                 </p>
 
@@ -378,17 +402,33 @@ export default function MatchPage({ params }: MatchPageProps) {
               </button>
             </div>
 
-            {/* Pediatric Safety Override Alert Banner */}
-            {isPediatric && (
+            {/* Pediatric & Pregnancy Safety Override Alert Banner */}
+            {isHighRisk && (
               <div className="p-4 bg-amber-500/15 border-2 border-amber-500 rounded-xl flex items-center justify-between gap-3 text-amber-950 shadow-md animate-fadeIn">
                 <div className="flex items-center gap-3">
                   <span className="text-2xl flex-shrink-0">⚠️</span>
                   <div>
                     <div className="text-sm font-extrabold tracking-wide uppercase text-amber-950">
-                      ⚠️ PEDIATRIC OVERRIDE (≤16): Immediate high-level care required.
+                      {hasRedFlags
+                        ? "⚠️ CRITICAL OVERRIDE: Airway/Shock indicators demand immediate Level 2/3 care."
+                        : isPregnant
+                        ? "⚠️ HIGH-RISK / PREGNANCY OVERRIDE: High-level facility transfer required."
+                        : "⚠️ PEDIATRIC OVERRIDE (≤16): Immediate high-level care required."}
                     </div>
                     <p className="text-xs text-amber-900 font-medium mt-0.5">
-                      Patient age (<strong className="font-bold">{demoData?.age || 'Pediatric'}</strong>) is within the high-risk pediatric cohort (&le; 16 years). Level 1 Primary Healthcare Centres are strictly bypassed. Destination forced to a Level 3 Specialist Centre with verified ICU capability and on-site antivenom.
+                      {hasRedFlags ? (
+                        <>
+                          Patient presents with <strong className="font-bold">Immediate Clinical Red Flags</strong> (airway/respiratory compromise or visible shock). Level 1 Primary Healthcare Centres are strictly bypassed. Destination forced to a Level 2 or Level 3 Specialist Centre with verified ICU and emergency resuscitation capability.
+                        </>
+                      ) : isPregnant ? (
+                        <>
+                          Patient is marked as <strong className="font-bold">Pregnant</strong>. Level 1 Primary Healthcare Centres are strictly bypassed due to elevated obstetric hemorrhage and maternal-fetal risk. Destination forced to a Level 2 or Level 3 Specialist Centre with verified ICU and high-level maternal care capability.
+                        </>
+                      ) : (
+                        <>
+                          Patient age (<strong className="font-bold">{demoData?.age || caseData?.patientAge || 'Pediatric'}</strong>) is within the high-risk pediatric cohort (&le; 16 years). Level 1 Primary Healthcare Centres are strictly bypassed. Destination forced to a Level 2 or Level 3 Specialist Centre with verified ICU capability and on-site antivenom.
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -427,13 +467,13 @@ export default function MatchPage({ params }: MatchPageProps) {
                           {opt.type}: {opt.mode}
                         </span>
 
-                        {isTop && !isPediatric && (
+                        {isTop && !isHighRisk && (
                           <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900 shadow-sm">
                             ⭐ Fastest Safe Pathway (-37 Mins Saved)
                           </span>
                         )}
 
-                        {isTop && isPediatric && (
+                        {isTop && isHighRisk && (
                           <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900 shadow-sm">
                             ⭐ Primary Recommended Pathway (ICU &amp; High-Level Care)
                           </span>
@@ -557,11 +597,19 @@ export default function MatchPage({ params }: MatchPageProps) {
                             </div>
                           </div>
 
-                          {isPediatric && isTop && (
+                          {isHighRisk && isTop && (
                             <div className="p-3 bg-brand-teal-900 text-white rounded-lg flex items-center justify-between text-xs font-medium">
                               <span className="flex items-center gap-1.5">
                                 <span className="text-brand-gold-500 font-bold">🛡️ Clinical Protocol Override:</span>
-                                <span>Pediatric patient routed directly to Level 3 ICU facility</span>
+                                <span>
+                                  {hasRedFlags
+                                    ? "Critical patient with airway/shock indicators routed directly to Level 3 ICU facility"
+                                    : isPregnant && isPediatric
+                                    ? "High-risk pediatric & pregnant patient routed directly to Level 3 ICU facility"
+                                    : isPregnant
+                                    ? "Pregnant patient routed directly to Level 3 Specialist Centre (Obstetric/ICU Protocol)"
+                                    : "Pediatric patient routed directly to Level 3 ICU facility"}
+                                </span>
                               </span>
                               <span className="text-brand-gold-500 font-bold">
                                 Verified Level 3 Ready
@@ -587,11 +635,11 @@ export default function MatchPage({ params }: MatchPageProps) {
                         {alertingId === (opt.facilityId || opt.destinationFacilityId) ? (
                           <>
                             <div className="w-3.5 h-3.5 border-2 border-brand-gold-500 border-t-transparent rounded-full animate-spin"></div>
-                            <span>Broadcasting Alert...</span>
+                            <span>Mobilizing Resources...</span>
                           </>
                         ) : (
                           <>
-                            <span>🔔 Send Pre-Alert &amp; Select</span>
+                            <span>🔔 Recommend &amp; Mobilize</span>
                           </>
                         )}
                       </button>

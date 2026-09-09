@@ -69,10 +69,10 @@ export default function Home() {
               2
             </div>
             <h3 className="font-bold text-slate-900 text-base mb-1">
-              4-Layer Clinical Gate
+              3-Layer Clinical Gate
             </h3>
             <p className="text-xs text-slate-600 leading-relaxed mb-4">
-              Immediate Bypass safety gate, NEWS2 (with strict pediatric/pregnancy bypass), 6-domain DART score, and WHO antivenom triggers.
+              Immediate Bypass safety gate, NEWS2 (with strict pediatric/pregnancy bypass), and WHO antivenom indication triggers.
             </p>
             <span className="text-xs font-medium text-slate-400">
               No black-box AI scores
