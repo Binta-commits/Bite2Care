@@ -107,6 +107,50 @@ export default function ActivatePage() {
     pregnancyStatus: "N/A (Male Patient)",
   });
 
+  // Multi-Victim Incident State
+  const [victimCount, setVictimCount] = useState<number>(1);
+  const [victim2Age, setVictim2Age] = useState<string>("");
+  const [victim2AgeUnit, setVictim2AgeUnit] = useState<string>("Years");
+  const [victim2Sex, setVictim2Sex] = useState<string>("female");
+  const [victim2Pregnancy, setVictim2Pregnancy] = useState<string>("Not Pregnant");
+  const [victim2AirwayIssue, setVictim2AirwayIssue] = useState<boolean>(false);
+
+  // Auto-disable and force pregnancy to N/A for victim 2 if male
+  useEffect(() => {
+    if (victim2Sex === "Male" || victim2Sex === "male") {
+      setVictim2Pregnancy("N/A (Male Patient)");
+    }
+  }, [victim2Sex]);
+
+  // Derived High-Level Clinical Safety Gate state (Victim 1 + Victim 2)
+  const ageNum = Number(form.patientAge);
+  const isPediatric =
+    form.patientAge !== "" &&
+    !isNaN(ageNum) &&
+    (ageUnit.toLowerCase() === "months" ||
+      (ageUnit.toLowerCase() === "years" && ageNum <= 16));
+  const isPregnant = pregnancy === "Yes" || pregnancy === "Pregnant";
+
+  const v2AgeNum = Number(victim2Age);
+  const isV2Pediatric =
+    victimCount > 1 &&
+    victim2Age !== "" &&
+    !isNaN(v2AgeNum) &&
+    (victim2AgeUnit.toLowerCase() === "months" ||
+      (victim2AgeUnit.toLowerCase() === "years" && v2AgeNum <= 16));
+  const isV2Pregnant =
+    victimCount > 1 &&
+    (victim2Pregnancy === "Yes" || victim2Pregnancy === "Pregnant");
+  const isV2Airway = victimCount > 1 && victim2AirwayIssue;
+
+  const isHighLevelBypass =
+    isPediatric ||
+    isPregnant ||
+    hasRedFlags ||
+    isV2Pediatric ||
+    isV2Pregnant ||
+    isV2Airway;
+
   // Simulated Telecom Network Geolocation State
   const [fetchingLoc, setFetchingLoc] = useState(false);
   const [locCaptured, setLocCaptured] = useState(false);
@@ -290,6 +334,7 @@ export default function ActivatePage() {
         pregnancy: pregnancy,
         pregnancyStatus: pregnancy,
         hasRedFlags: hasRedFlags,
+        hasAirwayIssue: hasRedFlags,
         channel: "WEB",
       };
 
@@ -309,15 +354,27 @@ export default function ActivatePage() {
         latitude: form.latitude || activeCountryConfig.lat,
         longitude: form.longitude || activeCountryConfig.lng,
         age: finalAgeString,
+        patientAge: form.patientAge,
         ageUnit: ageUnit || "Years",
         sex: sex || form.patientSex || "male",
+        patientSex: sex || form.patientSex || "male",
         pregnancy: pregnancy,
         pregnancyStatus: pregnancy,
         hasRedFlags: hasRedFlags,
+        hasAirwayIssue: hasRedFlags,
         snake: effectiveSnake,
+        suspectedSnake: effectiveSnake,
         biteSite: form.anatomicalBiteSite,
+        anatomicalBiteSite: form.anatomicalBiteSite,
         initiator: form.initiatorRole,
         healer: healerValue,
+        victimCount,
+        victim2Age,
+        victim2AgeUnit,
+        victim2Sex,
+        victim2Pregnancy,
+        victim2AirwayIssue,
+        requiredVials: victimCount > 1 ? 12 : 6,
       };
 
       console.log("Data saved:", finalPayload);
@@ -358,13 +415,27 @@ export default function ActivatePage() {
           latitude: form.latitude || activeCountryConfig.lat,
           longitude: form.longitude || activeCountryConfig.lng,
           age: finalAgeString,
+          patientAge: form.patientAge,
+          ageUnit: ageUnit || "Years",
           sex: sex || form.patientSex || "male",
+          patientSex: sex || form.patientSex || "male",
           pregnancy: pregnancy,
+          pregnancyStatus: pregnancy,
           hasRedFlags: hasRedFlags,
+          hasAirwayIssue: hasRedFlags,
           snake: effectiveSnake,
+          suspectedSnake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
+          anatomicalBiteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
           healer: healerValue,
+          victimCount,
+          victim2Age,
+          victim2AgeUnit,
+          victim2Sex,
+          victim2Pregnancy,
+          victim2AirwayIssue,
+          requiredVials: victimCount > 1 ? 12 : 6,
         };
 
         console.log("Data saved:", finalPayload);
@@ -848,35 +919,130 @@ export default function ActivatePage() {
                   )}
                 </div>
 
-                {/* Immediate Clinical Red Flags (Optional) */}
-                <div className="p-4 bg-red-50/70 border border-red-200 rounded-xl space-y-2">
+                {/* Immediate Clinical Red Flags & Dynamic High-Level Safety Bypass Trigger */}
+                <div
+                  className={`p-4 rounded-xl space-y-2.5 transition-all duration-200 border ${
+                    isHighLevelBypass
+                      ? "border-red-500 bg-red-50 ring-1 ring-red-400/50 shadow-sm"
+                      : "border-slate-200 bg-slate-50/70"
+                  }`}
+                >
                   <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-red-950 uppercase tracking-wide flex items-center gap-1.5">
+                    <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
                       <span>⚠️</span>
-                      <span>Immediate Clinical Red Flags (Optional)</span>
+                      <span>Immediate Clinical Red Flags (Airway / Shock)</span>
                     </label>
-                    <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded">
-                      High-Level Bypass
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded transition-colors ${
+                        isHighLevelBypass
+                          ? "bg-red-600 text-white"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {isHighLevelBypass ? "BYPASS ACTIVE" : "Safety Gate"}
                     </span>
                   </div>
-                  <label className="flex items-center gap-2.5 p-2 bg-white rounded-lg border border-red-200 text-xs font-semibold text-slate-900 cursor-pointer hover:bg-red-50/40 transition-colors">
+
+                  <label
+                    className={`flex items-center gap-2.5 p-2.5 bg-white rounded-lg border text-xs font-semibold text-slate-900 cursor-pointer transition-colors ${
+                      hasRedFlags
+                        ? "border-red-400 bg-red-50/30"
+                        : "border-slate-200 hover:bg-slate-100/50"
+                    }`}
+                  >
                     <input
                       type="checkbox"
                       id="hasRedFlags"
                       name="hasRedFlags"
                       checked={hasRedFlags}
                       onChange={(e) => setHasRedFlags(e.target.checked)}
-                      className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500"
+                      className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
                     />
                     <span>Airway / Respiratory Compromise or Visible Shock</span>
                   </label>
-                  <p className="text-[11px] text-red-800">
-                    If checked, the facility matching system will automatically bypass Level 1 clinics and prioritize Level 2/3 centres with ICU capability.
-                  </p>
+
+                  {isHighLevelBypass && (
+                    <div className="p-2.5 bg-red-100/90 border border-red-300 rounded-lg text-xs text-red-900 font-medium space-y-1 animate-fadeIn">
+                      <p className="font-bold flex items-center gap-1.5 text-red-800">
+                        <span>⚠️</span>
+                        <span>
+                          High-Level Bypass Activated: Direct Routing to Level 2/3 Specialist Centre.
+                        </span>
+                      </p>
+                      <p className="text-[11px] text-red-700">
+                        Triggered by:{" "}
+                        {[
+                          isPediatric &&
+                            `Pediatric patient (${form.patientAge} ${ageUnit})`,
+                          isPregnant && "Pregnancy status (Pregnant)",
+                          hasRedFlags && "Airway / respiratory compromise or shock",
+                        ]
+                          .filter(Boolean)
+                          .join(" • ")}
+                      </p>
+                    </div>
+                  )}
+
+                  {!isHighLevelBypass && (
+                    <p className="text-[11px] text-slate-500">
+                      Standard routing. If red flags, pediatric age (≤ 16 yrs), or pregnancy are detected, Level 1 clinics are automatically bypassed in favor of Level 2/3 specialist centres.
+                    </p>
+                  )}
                 </div>
 
-                {/* Patient Demographics & Age Input (Point 3) */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Number of Envenomed Victims (Incident Scale) */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide">
+                      Number of Envenomed Victims (Incident Scale)
+                    </label>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        victimCount > 1
+                          ? "bg-amber-600 text-white"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {victimCount > 1
+                        ? "MULTI-VICTIM CLUSTER (12 VIALS DEMAND)"
+                        : "SINGLE VICTIM"}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {[
+                      { count: 1, label: "1 Victim (Single Bite)" },
+                      { count: 2, label: "2 Victims (Dual Envenomation)" },
+                      { count: 3, label: "3+ Mass Incident" },
+                    ].map((btn) => (
+                      <button
+                        key={btn.count}
+                        type="button"
+                        onClick={() => setVictimCount(btn.count)}
+                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                          victimCount === btn.count
+                            ? "bg-brand-teal-800 text-white border-brand-teal-900 shadow-sm"
+                            : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+                        }`}
+                      >
+                        {btn.label}
+                      </button>
+                    ))}
+                  </div>
+                  {victimCount > 1 && (
+                    <p className="text-[11px] text-amber-800 font-medium pt-1">
+                      ⚠️ Multi-victim protocol active: Doubling initial antivenom requirement (≥12 vials). Transport prioritized for dual patient capacity.
+                    </p>
+                  )}
+                </div>
+
+                {/* Patient 1 Demographics & Age Input (Point 3) */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      {victimCount > 1 ? "Patient #1 (Primary Victim)" : "Patient Demographics"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label
                       htmlFor="patientAge"
@@ -902,7 +1068,11 @@ export default function ActivatePage() {
                       <select
                         id="ageUnitDropdown"
                         name="ageUnit"
-                        defaultValue="Years"
+                        value={ageUnit}
+                        onChange={(e) => {
+                          setAgeUnit(e.target.value);
+                          setForm((prev) => ({ ...prev, ageUnit: e.target.value }));
+                        }}
                         className="w-24 border border-slate-300 rounded-md p-3 focus:ring-2 focus:ring-brand-teal-700 focus:outline-none bg-slate-50 text-slate-900 shadow-sm text-xs font-semibold"
                       >
                         <option value="Years">Years</option>
@@ -953,7 +1123,10 @@ export default function ActivatePage() {
                       id="pregnancy"
                       name="pregnancy"
                       value={pregnancy} 
-                      onChange={(e) => setPregnancy(e.target.value)} 
+                      onChange={(e) => {
+                        setPregnancy(e.target.value);
+                        setForm((prev) => ({ ...prev, pregnancyStatus: e.target.value }));
+                      }} 
                       disabled={sex === "male" || sex === "Male"}
                       className={`flex h-10 w-full rounded-md border border-input px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border-slate-300 text-slate-900 focus:ring-2 focus:ring-brand-teal-700 ${(sex === "male" || sex === "Male") ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-white"}`}
                     >
@@ -968,6 +1141,96 @@ export default function ActivatePage() {
                     )}
                   </div>
                 </div>
+              </div>
+
+                {/* Victim 2 Demographics Card (When Multi-Victim Cluster Incident is Active) */}
+                {victimCount > 1 && (
+                  <div className="p-4 bg-amber-50/80 border-2 border-amber-300 rounded-xl space-y-3 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                          👥 Patient #2 (Secondary Victim)
+                        </span>
+                        <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
+                          Cluster Incident
+                        </span>
+                      </div>
+                      <span className="text-[11px] font-bold text-amber-800">
+                        +6 Vials Calculated
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-800 mb-1">
+                          Victim 2 Age
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="e.g. 10"
+                            value={victim2Age}
+                            onChange={(e) => setVictim2Age(e.target.value)}
+                            className="flex-1 border border-slate-300 rounded-md p-2.5 bg-white text-xs text-slate-900 font-medium focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
+                          />
+                          <select
+                            value={victim2AgeUnit}
+                            onChange={(e) => setVictim2AgeUnit(e.target.value)}
+                            className="w-20 border border-slate-300 rounded-md p-2.5 bg-slate-50 text-xs font-semibold"
+                          >
+                            <option value="Years">Years</option>
+                            <option value="Months">Months</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-800 mb-1">
+                          Victim 2 Sex
+                        </label>
+                        <select
+                          value={victim2Sex}
+                          onChange={(e) => setVictim2Sex(e.target.value)}
+                          className="w-full border border-slate-300 rounded-md p-2.5 bg-white text-xs text-slate-900 font-medium focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
+                        >
+                          <option value="female">Female</option>
+                          <option value="male">Male</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-800 mb-1">
+                          Victim 2 Pregnancy
+                        </label>
+                        <select
+                          value={victim2Pregnancy}
+                          onChange={(e) => setVictim2Pregnancy(e.target.value)}
+                          disabled={victim2Sex === "male" || victim2Sex === "Male"}
+                          className={`w-full border border-slate-300 rounded-md p-2.5 text-xs font-medium focus:ring-2 focus:ring-brand-teal-700 focus:outline-none ${
+                            victim2Sex === "male" || victim2Sex === "Male"
+                              ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                              : "bg-white text-slate-900"
+                          }`}
+                        >
+                          <option value="Not Pregnant">Not Pregnant</option>
+                          <option value="Pregnant">Pregnant</option>
+                          <option value="N/A (Male Patient)">N/A (Male Patient)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-200 text-xs font-medium text-slate-800 cursor-pointer hover:bg-amber-50/50 transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={victim2AirwayIssue}
+                        onChange={(e) => setVictim2AirwayIssue(e.target.checked)}
+                        className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
+                      />
+                      <span>Victim 2 Has Airway Compromise / Respiratory Shock</span>
+                    </label>
+                  </div>
+                )}
 
                 {/* Submit Action Button with isSubmitting state & spinner */}
                 <div className="pt-2">

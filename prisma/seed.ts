@@ -1,4 +1,10 @@
-import { PrismaClient, AntivenomStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+
+const AntivenomStatus = {
+  IN_STOCK: 'IN_STOCK',
+  LOW: 'LOW',
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
+} as const
 
 const prisma = new PrismaClient()
 

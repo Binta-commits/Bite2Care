@@ -28,10 +28,16 @@ export default function ManagePage({ params }: ManagePageProps) {
     location: string;
     country: string;
     age: string;
+    patientAge?: string | number;
     ageUnit?: string;
     sex: string;
+    patientSex?: string;
     snake: string;
+    suspectedSnake?: string;
     pregnancy?: string;
+    pregnancyStatus?: string;
+    hasRedFlags?: boolean;
+    hasAirwayIssue?: boolean;
     initiator?: string;
     healer?: string | null;
     clinicalOutcome?: string;
@@ -44,6 +50,7 @@ export default function ManagePage({ params }: ManagePageProps) {
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
     pregnancy: "N/A (Male)",
+    pregnancyStatus: "N/A (Male)",
   });
 
   useEffect(() => {
@@ -60,6 +67,28 @@ export default function ManagePage({ params }: ManagePageProps) {
     } catch (e) {}
   }, []);
 
+  // Derived High-Level Safety Bypass checks
+  const isPediatric = Boolean(
+    demoData?.ageUnit?.toLowerCase() === "months" ||
+      (demoData?.age && parseFloat(demoData.age) <= 16) ||
+      (demoData?.patientAge && Number(demoData.patientAge) <= 16) ||
+      (caseRec?.patientAge && Number(caseRec.patientAge) <= 16)
+  );
+  const pregStr = String(
+    demoData?.pregnancyStatus ||
+      demoData?.pregnancy ||
+      caseRec?.pregnancyStatus ||
+      ""
+  ).trim();
+  const isPregnant = pregStr === "Yes" || pregStr === "Pregnant";
+  const hasAirwayIssue = Boolean(
+    demoData?.hasAirwayIssue === true ||
+      demoData?.hasRedFlags === true ||
+      caseRec?.hasAirwayIssue === true ||
+      caseRec?.hasRedFlags === true
+  );
+  const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue;
+
   // Outcome Form State (used when ARRIVED)
   const [vialsAdministered, setVialsAdministered] = useState<number>(2);
   const [clinicalOutcome, setClinicalOutcome] = useState<string>("DISCHARGED_STABLE");
@@ -73,6 +102,10 @@ export default function ManagePage({ params }: ManagePageProps) {
       const isClosedParam =
         typeof window !== "undefined" &&
         window.location.search.includes("closed=true");
+      const isInpatientParam =
+        typeof window !== "undefined" &&
+        (window.location.search.includes("inpatient=true") ||
+          (demoData as any)?.clinicalOutcome === "Admitted Inpatient");
 
       const res = await fetch(`/api/cases/${caseId}`);
       const json = await res.json();
@@ -84,6 +117,13 @@ export default function ManagePage({ params }: ManagePageProps) {
                 state: "CLOSED",
                 vialsAdministered: 6,
                 clinicalOutcome: "DISCHARGED_STABLE",
+              }
+            : isInpatientParam
+            ? {
+                ...json.case,
+                state: "ADMITTED_INPATIENT",
+                vialsAdministered: 10,
+                clinicalOutcome: "ADMITTED_INPATIENT",
               }
             : json.case
         );
@@ -98,9 +138,17 @@ export default function ManagePage({ params }: ManagePageProps) {
           patientSex: "male",
           pregnancyStatus: "N/A",
           facilityId: "fac-b",
-          state: isClosedParam ? "CLOSED" : "ACCEPTED",
-          vialsAdministered: isClosedParam ? 6 : null,
-          clinicalOutcome: isClosedParam ? "DISCHARGED_STABLE" : null,
+          state: isClosedParam
+            ? "CLOSED"
+            : isInpatientParam
+            ? "ADMITTED_INPATIENT"
+            : "ACCEPTED",
+          vialsAdministered: isClosedParam ? 6 : isInpatientParam ? 10 : null,
+          clinicalOutcome: isClosedParam
+            ? "DISCHARGED_STABLE"
+            : isInpatientParam
+            ? "ADMITTED_INPATIENT"
+            : null,
           channel: "WEB",
         });
       }
@@ -109,6 +157,10 @@ export default function ManagePage({ params }: ManagePageProps) {
       const isClosedParam =
         typeof window !== "undefined" &&
         window.location.search.includes("closed=true");
+      const isInpatientParam =
+        typeof window !== "undefined" &&
+        (window.location.search.includes("inpatient=true") ||
+          (demoData as any)?.clinicalOutcome === "Admitted Inpatient");
 
       setCaseRec({
         id: caseId,
@@ -119,9 +171,17 @@ export default function ManagePage({ params }: ManagePageProps) {
         patientSex: "male",
         pregnancyStatus: "N/A",
         facilityId: "fac-b",
-        state: isClosedParam ? "CLOSED" : "ACCEPTED",
-        vialsAdministered: isClosedParam ? 6 : null,
-        clinicalOutcome: isClosedParam ? "DISCHARGED_STABLE" : null,
+        state: isClosedParam
+          ? "CLOSED"
+          : isInpatientParam
+          ? "ADMITTED_INPATIENT"
+          : "ACCEPTED",
+        vialsAdministered: isClosedParam ? 6 : isInpatientParam ? 10 : null,
+        clinicalOutcome: isClosedParam
+          ? "DISCHARGED_STABLE"
+          : isInpatientParam
+          ? "ADMITTED_INPATIENT"
+          : null,
         channel: "WEB",
       });
     } finally {
@@ -343,6 +403,52 @@ export default function ManagePage({ params }: ManagePageProps) {
           </div>
         )}
 
+        {/* Multi-Day Inpatient Ward Monitoring Banner */}
+        {effectiveState === "ADMITTED_INPATIENT" && (
+          <div className="mb-6 p-6 bg-purple-900 text-white border border-purple-800 rounded-xl shadow-lg animate-fadeIn">
+            <div className="flex items-start">
+              <div className="w-8 h-8 rounded-full bg-purple-800 border border-purple-400 text-purple-200 flex items-center justify-center font-bold text-sm mr-3 flex-shrink-0">
+                🏥
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-white">
+                    Inpatient Ward Monitoring &bull; Day 2 of 3
+                  </h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-400 text-purple-950">
+                    WARD CARE ACTIVE
+                  </span>
+                </div>
+                <p className="text-xs text-purple-200 mt-1">
+                  Patient admitted to the acute ward following initial antivenom titration. Serial 20WBCT clotting tests and vital signs tracked across 72 hours.
+                </p>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px] font-mono">
+                  <div className="p-2.5 bg-purple-950/80 rounded border border-purple-800">
+                    <span className="text-purple-300 block font-bold">Total Vials Administered:</span>
+                    <span className="text-white text-xs font-bold">10 Vials (6 initial + 4 at 6h)</span>
+                  </div>
+                  <div className="p-2.5 bg-purple-950/80 rounded border border-purple-800">
+                    <span className="text-purple-300 block font-bold">Serial 20WBCT Clotting:</span>
+                    <span className="text-emerald-300 text-xs font-bold">Normalized (12 Mins)</span>
+                  </div>
+                  <div className="p-2.5 bg-purple-950/80 rounded border border-purple-800">
+                    <span className="text-purple-300 block font-bold">Next Ward Evaluation:</span>
+                    <span className="text-amber-300 text-xs font-bold">Day 3 Discharge Clearance</span>
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <Link
+                    href={`/triage/${caseId}`}
+                    className="px-3.5 py-1.5 bg-purple-400 hover:bg-purple-300 text-purple-950 text-xs font-bold rounded-md transition-colors"
+                  >
+                    🩺 Update Doctor Notes &amp; Discharge
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Closed-Loop Feedback Dispatch Banner (When Closed) */}
         {effectiveState === "CLOSED" && (
           <div className="mb-6 p-6 bg-brand-teal-900 text-white border border-brand-teal-800 rounded-xl shadow-lg">
@@ -420,7 +526,15 @@ export default function ManagePage({ params }: ManagePageProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Pregnancy:</span>
-                <span className="font-semibold text-slate-900">{demoData?.pregnancy}</span>
+                <span className="font-semibold text-slate-900">{demoData?.pregnancyStatus || demoData?.pregnancy || "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Safety Protocol:</span>
+                <span className={`font-bold ${isHighLevelBypass ? "text-red-700" : "text-emerald-700"}`}>
+                  {isHighLevelBypass
+                    ? "Level 2/3 High-Risk Bypass"
+                    : "Standard Care Protocol"}
+                </span>
               </div>
             </div>
           </div>
@@ -433,7 +547,18 @@ export default function ManagePage({ params }: ManagePageProps) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Receiving Facility:</span>
                 <span className="font-bold text-brand-teal-900">
-                  Facility B (Primary Healthcare Centre)
+                  {caseRec?.facilityName ||
+                    (isHighLevelBypass
+                      ? "Federal Medical Centre (Central Specialist Hospital)"
+                      : "Facility B (Primary Healthcare Centre)")}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Facility Level:</span>
+                <span className="font-semibold text-slate-900">
+                  {isHighLevelBypass
+                    ? "Level 3 Specialist Centre (ICU & Antivenom Ready)"
+                    : "Level 1 PHC (Basic Emergency Ready)"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -449,7 +574,9 @@ export default function ManagePage({ params }: ManagePageProps) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Stock Convergence:</span>
                 <span className="font-semibold text-brand-teal-800">
-                  Hub C Priority Motorcycle in Transit (ETA 38m)
+                  {isHighLevelBypass
+                    ? "On-site Verified Stock (14 Vials in Central Pharmacy)"
+                    : "Hub C Priority Motorcycle in Transit (ETA 38m)"}
                 </span>
               </div>
             </div>

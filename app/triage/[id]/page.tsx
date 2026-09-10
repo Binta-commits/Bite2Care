@@ -314,29 +314,55 @@ export default function TriagePage({ params }: TriagePageProps) {
                   </div>
                 </div>
 
-                {/* Final Discharge / Clinical Outcome Section (Point 9) */}
+                {/* Multi-Day Inpatient Ward & Final Discharge Section */}
                 <div className="mt-5 pt-4 border-t border-white/20 space-y-4">
                   <div>
                     <h4 className="text-sm font-bold text-white flex items-center gap-2">
                       <span>🏥</span>
-                      <span>Discharge &amp; Clinical Outcome Handover</span>
+                      <span>Inpatient Ward Management &amp; Clinical Outcome</span>
                     </h4>
                     <p className="text-xs text-slate-300 mt-0.5">
-                      Select final patient disposition to conclude the operational emergency flow.
+                      Track multi-day envenomation recovery, serial 20WBCT clotting tests, repeat antivenom dosing, or safe discharge.
                     </p>
+                  </div>
+
+                  {/* Serial 20WBCT Clotting Timeline (Multi-Day Inpatient Flow) */}
+                  <div className="p-3.5 bg-brand-teal-950/70 border border-brand-teal-700/80 rounded-xl space-y-2">
+                    <span className="text-[11px] font-bold text-brand-gold-400 uppercase tracking-wider block">
+                      🩸 Serial 20WBCT Clotting &amp; Recovery Timeline:
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                      <div className="p-2 bg-brand-teal-900/90 rounded border border-brand-teal-700">
+                        <span className="text-slate-400 block font-semibold">0h (ER Arrival):</span>
+                        <span className="text-red-400 font-bold">Uncoagulated (Dose 1: 6 Vials)</span>
+                      </div>
+                      <div className="p-2 bg-brand-teal-900/90 rounded border border-brand-teal-700">
+                        <span className="text-slate-400 block font-semibold">6h (Ward Check):</span>
+                        <span className="text-amber-300 font-bold">Repeat 20WBCT (+4 Vials if uncoagulated)</span>
+                      </div>
+                      <div className="p-2 bg-brand-teal-900/90 rounded border border-brand-teal-700">
+                        <span className="text-slate-400 block font-semibold">Day 2 (24h):</span>
+                        <span className="text-blue-300 font-bold">Monitor AKI &amp; Necrosis</span>
+                      </div>
+                      <div className="p-2 bg-brand-teal-900/90 rounded border border-brand-teal-700">
+                        <span className="text-slate-400 block font-semibold">Day 3 (48h-72h):</span>
+                        <span className="text-emerald-300 font-bold">Normal Clotting &rarr; Discharge</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-200 mb-1">
-                        Clinical Outcome Disposition
+                        Clinical Outcome / Ward Disposition
                       </label>
                       <select
                         value={outcomeSelection}
                         onChange={(e) => setOutcomeSelection(e.target.value)}
                         className="w-full border border-slate-300 rounded-lg p-2.5 bg-white text-slate-900 font-semibold text-xs shadow-sm focus:ring-2 focus:ring-brand-gold-500 focus:outline-none"
                       >
-                        <option value="Discharged Stable">Discharged Stable (Full Recovery)</option>
+                        <option value="Discharged Stable">Discharged Stable (Full Recovery - Day 3 Discharge)</option>
+                        <option value="Admitted Inpatient">Admitted Inpatient (Multi-Day Ward Observation - Day 1-3)</option>
                         <option value="Surgical Intervention">Surgical Intervention (Fasciotomy / Debridement)</option>
                         <option value="Referred to Higher Care">Referred to Higher Care (Tertiary ICU)</option>
                         <option value="Deceased">Deceased</option>
@@ -345,13 +371,13 @@ export default function TriagePage({ params }: TriagePageProps) {
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-200 mb-1">
-                        Attending Physician Notes
+                        Attending Physician Notes &amp; Follow-up Plan
                       </label>
                       <input
                         type="text"
                         value={clinicalNotes}
                         onChange={(e) => setClinicalNotes(e.target.value)}
-                        placeholder="e.g. 20WBCT normalized at 6h. Vitals stabilized."
+                        placeholder="e.g. 20WBCT normalized at 18h. Day 7 CSC wound follow-up scheduled."
                         className="w-full border border-slate-300 rounded-lg p-2.5 bg-white text-slate-900 text-xs shadow-sm focus:ring-2 focus:ring-brand-gold-500 focus:outline-none"
                       />
                     </div>
@@ -367,11 +393,15 @@ export default function TriagePage({ params }: TriagePageProps) {
                       {submittingOutcome ? (
                         <>
                           <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
-                          <span>Closing Case &amp; Dispatching CSC SMS...</span>
+                          <span>Saving Clinical Disposition &amp; Notifying CSC...</span>
                         </>
                       ) : (
                         <>
-                          <span>✓ Submit Outcome &amp; Close Case</span>
+                          <span>
+                            {outcomeSelection === "Admitted Inpatient"
+                              ? "✓ Admit to Inpatient Ward & Update Trackers"
+                              : "✓ Submit Outcome & Discharge Patient"}
+                          </span>
                           <span>&rarr;</span>
                         </>
                       )}
@@ -382,7 +412,7 @@ export default function TriagePage({ params }: TriagePageProps) {
                       <div className="p-3 bg-emerald-950/80 border border-emerald-500/80 rounded-lg flex items-center gap-2 text-xs text-emerald-100 font-semibold shadow-sm animate-fadeIn">
                         <span className="text-base">✅</span>
                         <span>
-                          <strong>Referral Confirmed:</strong> Automated incentive logged for Traditional Healer:{" "}
+                          <strong>Referral Confirmed:</strong> Automated $10 voucher logged for Traditional Healer:{" "}
                           <span className="text-brand-gold-400 font-bold underline">{demoData.healer}</span>
                         </span>
                       </div>

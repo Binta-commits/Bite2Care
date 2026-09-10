@@ -37,18 +37,24 @@ export default function RootLayout({
                 </span>
               </div>
             </Link>
-            <nav className="flex items-center gap-4 sm:gap-6 text-sm font-medium text-slate-200">
+            <nav className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm font-medium text-slate-200">
               <Link
                 href="/activate"
                 className="hover:text-brand-gold-500 transition-colors"
               >
-                Activate Case
+                🚨 Activate Case
               </Link>
               <Link
-                href="/facility/00000000-0000-0000-0000-00000000000A/readiness"
-                className="hover:text-brand-gold-500 transition-colors hidden sm:inline-block"
+                href="/cases"
+                className="hover:text-brand-gold-500 transition-colors"
               >
-                Facility Readiness
+                📋 Case Archive
+              </Link>
+              <Link
+                href="/facilities"
+                className="hover:text-brand-gold-500 transition-colors"
+              >
+                🏥 Facility Grid
               </Link>
             </nav>
           </div>

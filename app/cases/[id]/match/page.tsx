@@ -145,11 +145,16 @@ export default function MatchPage({ params }: MatchPageProps) {
     location: string;
     country: string;
     age: string;
+    patientAge?: string | number;
     ageUnit?: string;
     sex: string;
+    patientSex?: string;
     snake: string;
+    suspectedSnake?: string;
     pregnancy?: string;
+    pregnancyStatus?: string;
     hasRedFlags?: boolean;
+    hasAirwayIssue?: boolean;
   }>({
     location: "Yam farm 2km north of Keffi market",
     country: "Nigeria",
@@ -158,7 +163,9 @@ export default function MatchPage({ params }: MatchPageProps) {
     sex: "male",
     snake: "West African Carpet Viper (Echis ocellatus)",
     pregnancy: "N/A (Male)",
+    pregnancyStatus: "N/A (Male)",
     hasRedFlags: false,
+    hasAirwayIssue: false,
   });
 
   const [caseData, setCaseData] = useState<any>(null);
@@ -191,14 +198,37 @@ export default function MatchPage({ params }: MatchPageProps) {
     }
   }, [caseId]);
 
-  // Strict 16-Year Pediatric, Pregnancy & Red Flag Clinical Safety Gate Evaluation
-  const hasRedFlags = Boolean(demoData?.hasRedFlags === true || caseData?.hasRedFlags === true);
-  const isPediatric = isPediatricAge(caseData?.patientAge || demoData?.age, demoData?.ageUnit);
-  const isPregnant = (caseData?.pregnancy || caseData?.pregnancyStatus || demoData?.pregnancy) === "Pregnant";
-  const isHighRisk = isPediatric || isPregnant || hasRedFlags;
+  // Check 1: Is the patient 16 or under? (Account for months as well)
+  const isPediatric = isPediatricAge(
+    demoData?.patientAge ?? demoData?.age ?? caseData?.patientAge,
+    demoData?.ageUnit
+  );
 
-  // Matching algorithm strictly filters Level 1 facilities if isPediatric, isPregnant, or hasRedFlags is true
-  const ranked = isHighRisk ? HIGH_RISK_RANKED_OPTIONS : ADULT_RANKED_OPTIONS;
+  // Check 2: Is the patient pregnant?
+  const pregVal = String(
+    demoData?.pregnancyStatus ||
+    demoData?.pregnancy ||
+    caseData?.pregnancyStatus ||
+    caseData?.pregnancy ||
+    ""
+  ).trim();
+  const isPregnant = pregVal === "Yes" || pregVal === "Pregnant";
+
+  // Check 3: Immediate Red Flags / Airway Issue
+  const hasAirwayIssue = Boolean(
+    demoData?.hasAirwayIssue === true ||
+    demoData?.hasRedFlags === true ||
+    caseData?.hasAirwayIssue === true ||
+    caseData?.hasRedFlags === true
+  );
+  const hasRedFlags = hasAirwayIssue;
+
+  // Master Trigger: If ANY of these are true, activate the bypass
+  const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue;
+  const isHighRisk = isHighLevelBypass;
+
+  // Matching algorithm strictly filters Level 1 facilities if isHighLevelBypass is true
+  const ranked = isHighLevelBypass ? HIGH_RISK_RANKED_OPTIONS : ADULT_RANKED_OPTIONS;
 
   // Step 1: Send Pre-Arrival Alert & Request Acceptance (Pure Simulation)
   const requestAcceptance = (optionItem: any) => {
@@ -281,12 +311,42 @@ export default function MatchPage({ params }: MatchPageProps) {
         <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between text-xs text-slate-700 gap-2">
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-slate-900">📍 Incident Site:</span>
-            <span className="font-medium text-slate-800">{demoData.location}, {demoData.country}</span>
+            <span className="font-medium text-slate-800">
+              {demoData.location || caseData?.location}, {demoData.country || caseData?.country}
+            </span>
           </div>
           <div className="flex items-center gap-3 text-slate-600 flex-wrap">
-            <span><strong>Victim:</strong> {demoData?.age || 'Unknown'} / {demoData?.sex || 'Unknown'}</span>
-            <span><strong>Pregnancy:</strong> {demoData?.pregnancy || 'Unspecified'}</span>
-            <span><strong>Snake:</strong> {demoData.snake}</span>
+            <span>
+              <strong>Victim:</strong>{" "}
+              {demoData?.patientAge
+                ? `${demoData.patientAge} ${demoData?.ageUnit || "years"}`
+                : demoData?.age || (caseData?.patientAge ? `${caseData.patientAge} years` : "Unknown")}{" "}
+              / {demoData?.patientSex || demoData?.sex || caseData?.patientSex || "Unknown"}
+            </span>
+            <span>
+              <strong>Pregnancy:</strong>{" "}
+              <span className={isPregnant ? "font-bold text-red-600" : "font-semibold text-slate-800"}>
+                {demoData?.pregnancyStatus ||
+                  demoData?.pregnancy ||
+                  caseData?.pregnancyStatus ||
+                  ((demoData?.sex || demoData?.patientSex || caseData?.patientSex)?.toLowerCase() === "male"
+                    ? "N/A (Male Patient)"
+                    : "Not Pregnant")}
+              </span>
+            </span>
+            <span>
+              <strong>Snake:</strong> {demoData?.suspectedSnake || demoData.snake || caseData?.suspectedSnake || "Unknown"}
+            </span>
+            {hasAirwayIssue && (
+              <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[11px]">
+                ⚠️ Airway / Shock Red Flag
+              </span>
+            )}
+            {(demoData as any)?.victimCount > 1 && (
+              <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[11px] border border-amber-300">
+                👥 Dual Bite Incident (12 Vials Needed)
+              </span>
+            )}
           </div>
         </div>
 
