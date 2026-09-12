@@ -171,6 +171,8 @@ export default function MatchPage({ params }: MatchPageProps) {
     pregnancyStatus?: string;
     hasRedFlags?: boolean;
     hasAirwayIssue?: boolean;
+    hasAlteredMentalStatus?: boolean;
+    hasAlteredConsciousness?: boolean;
   }>({
     location: "Yam farm 2km north of Keffi market",
     country: "Nigeria",
@@ -230,10 +232,12 @@ export default function MatchPage({ params }: MatchPageProps) {
   ).trim();
   const isPregnant = pregVal === "Yes" || pregVal === "Pregnant";
 
-  // Check 3: Immediate Red Flags / Airway Issue
+  // Check 3: Immediate Red Flags / Airway / Altered Mental Status Issue
   const hasAirwayIssue = Boolean(
     demoData?.hasAirwayIssue === true ||
     demoData?.hasRedFlags === true ||
+    demoData?.hasAlteredMentalStatus === true ||
+    demoData?.hasAlteredConsciousness === true ||
     caseData?.hasAirwayIssue === true ||
     caseData?.hasRedFlags === true
   );
@@ -244,8 +248,8 @@ export default function MatchPage({ params }: MatchPageProps) {
   const hasAdditionalVictimBypass = additionalVictims.some((v: any) => {
     const isVPed = isPediatricAge(v.age, v.ageUnit);
     const isVPreg = v.pregnancy === "Yes" || v.pregnancy === "Pregnant";
-    return isVPed || isVPreg || Boolean(v.hasAirwayIssue);
-  }) || Boolean((demoData as any)?.victim2AirwayIssue);
+    return isVPed || isVPreg || Boolean(v.hasAirwayIssue) || Boolean(v.hasAlteredMentalStatus);
+  }) || Boolean((demoData as any)?.victim2AirwayIssue) || Boolean((demoData as any)?.victim2AlteredMentalStatus);
 
   // Master Trigger: If ANY of these are true, activate the bypass
   const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue || hasAdditionalVictimBypass;

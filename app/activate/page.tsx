@@ -15,6 +15,7 @@ export interface AdditionalVictim {
   sex: string;
   pregnancy: string;
   hasAirwayIssue: boolean;
+  hasAlteredMentalStatus?: boolean;
 }
 
 // Regional country configurations for scalable localization and cell tower triangulation simulation
@@ -94,6 +95,7 @@ export default function ActivatePage() {
   const [sex, setSex] = useState<string>("Male");
   const [pregnancy, setPregnancy] = useState<string>("N/A (Male Patient)");
   const [hasRedFlags, setHasRedFlags] = useState<boolean>(false);
+  const [hasAlteredMentalStatus, setHasAlteredMentalStatus] = useState<boolean>(false);
 
   // Interrupt Recovery Draft State
   const [draftRestored, setDraftRestored] = useState<boolean>(false);
@@ -229,6 +231,7 @@ export default function ActivatePage() {
         if (parsed.sex) setSex(parsed.sex);
         if (parsed.pregnancy) setPregnancy(parsed.pregnancy);
         if (parsed.hasRedFlags !== undefined) setHasRedFlags(parsed.hasRedFlags);
+        if (parsed.hasAlteredMentalStatus !== undefined) setHasAlteredMentalStatus(parsed.hasAlteredMentalStatus);
         if (parsed.victimCountMode) setVictimCountMode(parsed.victimCountMode);
         if (parsed.additionalVictims && Array.isArray(parsed.additionalVictims)) {
           setAdditionalVictims(parsed.additionalVictims);
@@ -242,6 +245,7 @@ export default function ActivatePage() {
               sex: parsed.victim2Sex || "female",
               pregnancy: parsed.victim2Pregnancy || "Not Pregnant",
               hasAirwayIssue: Boolean(parsed.victim2AirwayIssue),
+              hasAlteredMentalStatus: Boolean(parsed.victim2AlteredMentalStatus),
             },
           ]);
         }
@@ -261,6 +265,7 @@ export default function ActivatePage() {
             sex,
             pregnancy,
             hasRedFlags,
+            hasAlteredMentalStatus,
             victimCountMode,
             additionalVictims,
             savedAt: new Date().toISOString(),
@@ -277,6 +282,7 @@ export default function ActivatePage() {
     sex,
     pregnancy,
     hasRedFlags,
+    hasAlteredMentalStatus,
     victimCountMode,
     additionalVictims,
   ]);
@@ -284,6 +290,7 @@ export default function ActivatePage() {
   const handleClearDraft = () => {
     try {
       localStorage.removeItem(DRAFT_CACHE_KEY);
+      localStorage.removeItem("draft");
     } catch (e) {}
     setDraftRestored(false);
     setForm({
@@ -306,6 +313,7 @@ export default function ActivatePage() {
     setSex("Male");
     setPregnancy("N/A (Male Patient)");
     setHasRedFlags(false);
+    setHasAlteredMentalStatus(false);
     setVictimCountMode(1);
     setAdditionalVictims([]);
   };
@@ -327,13 +335,14 @@ export default function ActivatePage() {
       (v.ageUnit.toLowerCase() === "months" ||
         (v.ageUnit.toLowerCase() === "years" && vAgeNum <= 16));
     const isVPreg = v.pregnancy === "Yes" || v.pregnancy === "Pregnant";
-    return isVPed || isVPreg || Boolean(v.hasAirwayIssue);
+    return isVPed || isVPreg || Boolean(v.hasAirwayIssue) || Boolean(v.hasAlteredMentalStatus);
   });
 
   const isHighLevelBypass =
     isPediatric ||
     isPregnant ||
     hasRedFlags ||
+    hasAlteredMentalStatus ||
     hasAdditionalVictimBypass;
 
   const totalVictims = 1 + additionalVictims.length;
@@ -521,8 +530,10 @@ export default function ActivatePage() {
         patientSex: sex || form.patientSex,
         pregnancy: pregnancy,
         pregnancyStatus: pregnancy,
-        hasRedFlags: hasRedFlags,
+        hasRedFlags: hasRedFlags || hasAlteredMentalStatus,
         hasAirwayIssue: hasRedFlags,
+        hasAlteredMentalStatus: hasAlteredMentalStatus,
+        hasAlteredConsciousness: hasAlteredMentalStatus,
         channel: "WEB",
       };
 
@@ -548,8 +559,10 @@ export default function ActivatePage() {
         patientSex: sex || form.patientSex || "male",
         pregnancy: pregnancy,
         pregnancyStatus: pregnancy,
-        hasRedFlags: hasRedFlags,
+        hasRedFlags: hasRedFlags || hasAlteredMentalStatus,
         hasAirwayIssue: hasRedFlags,
+        hasAlteredMentalStatus: hasAlteredMentalStatus,
+        hasAlteredConsciousness: hasAlteredMentalStatus,
         snake: effectiveSnake,
         suspectedSnake: effectiveSnake,
         biteSite: form.anatomicalBiteSite,
@@ -563,6 +576,7 @@ export default function ActivatePage() {
         victim2Sex: additionalVictims[0]?.sex || "female",
         victim2Pregnancy: additionalVictims[0]?.pregnancy || "Not Pregnant",
         victim2AirwayIssue: Boolean(additionalVictims[0]?.hasAirwayIssue),
+        victim2AlteredMentalStatus: Boolean(additionalVictims[0]?.hasAlteredMentalStatus),
         requiredVials: requiredVials,
       };
 
@@ -588,7 +602,7 @@ export default function ActivatePage() {
             channel: "WEB",
             initiatorRole: form.initiatorRole,
             healerName: healerValue,
-            hasRedFlags: hasRedFlags,
+            hasRedFlags: hasRedFlags || hasAlteredMentalStatus,
             hasAirwayIssue: hasRedFlags,
           },
           currentRole
@@ -672,8 +686,10 @@ export default function ActivatePage() {
           patientSex: sex || form.patientSex || "male",
           pregnancy: pregnancy,
           pregnancyStatus: pregnancy,
-          hasRedFlags: hasRedFlags,
+          hasRedFlags: hasRedFlags || hasAlteredMentalStatus,
           hasAirwayIssue: hasRedFlags,
+          hasAlteredMentalStatus: hasAlteredMentalStatus,
+          hasAlteredConsciousness: hasAlteredMentalStatus,
           snake: effectiveSnake,
           suspectedSnake: effectiveSnake,
           biteSite: form.anatomicalBiteSite,
@@ -687,6 +703,7 @@ export default function ActivatePage() {
           victim2Sex: additionalVictims[0]?.sex || "female",
           victim2Pregnancy: additionalVictims[0]?.pregnancy || "Not Pregnant",
           victim2AirwayIssue: Boolean(additionalVictims[0]?.hasAirwayIssue),
+          victim2AlteredMentalStatus: Boolean(additionalVictims[0]?.hasAlteredMentalStatus),
           requiredVials: requiredVials,
         };
 
@@ -723,6 +740,7 @@ export default function ActivatePage() {
       setSex("Male");
       setPregnancy("N/A (Male Patient)");
       setHasRedFlags(false);
+      setHasAlteredMentalStatus(false);
       setVictimCountMode(1);
       setAdditionalVictims([]);
 
@@ -1241,7 +1259,7 @@ export default function ActivatePage() {
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
                       <span>⚠️</span>
-                      <span>Immediate Clinical Red Flags (Airway / Shock)</span>
+                      <span>Immediate Clinical Red Flags (Airway / Shock / Neuro)</span>
                     </label>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded transition-colors ${
@@ -1254,30 +1272,62 @@ export default function ActivatePage() {
                     </span>
                   </div>
 
-                  <label
-                    className={`flex items-center gap-2.5 p-2.5 bg-white rounded-lg border text-xs font-semibold text-slate-900 cursor-pointer transition-colors ${
-                      hasRedFlags
-                        ? "border-red-400 bg-red-50/30"
-                        : "border-slate-200 hover:bg-slate-100/50"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      id="hasRedFlags"
-                      name="hasRedFlags"
-                      checked={hasRedFlags}
-                      onChange={(e) => setHasRedFlags(e.target.checked)}
-                      className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
-                    />
-                    <span>Airway / Respiratory Compromise or Visible Shock</span>
-                  </label>
+                  <div className="space-y-2">
+                    {/* Flag 1: Airway & Shock */}
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 bg-white rounded-lg border text-xs font-semibold text-slate-900 cursor-pointer transition-colors ${
+                        hasRedFlags
+                          ? "border-red-400 bg-red-50/30"
+                          : "border-slate-200 hover:bg-slate-100/50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        id="hasRedFlags"
+                        name="hasRedFlags"
+                        checked={hasRedFlags}
+                        onChange={(e) => setHasRedFlags(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
+                      />
+                      <div>
+                        <span className="text-red-950 font-bold">Airway / Respiratory Compromise or Visible Shock</span>
+                        <span className="block text-[11px] text-slate-500 font-normal">
+                          Stridor, severe dyspnea, cyanosis, cold extremities, or unrecordable BP
+                        </span>
+                      </div>
+                    </label>
+
+                    {/* Flag 2: Reduced Conscious Level / Altered Mental Status */}
+                    <label
+                      className={`flex items-start gap-2.5 p-2.5 bg-white rounded-lg border text-xs font-semibold text-slate-900 cursor-pointer transition-colors ${
+                        hasAlteredMentalStatus
+                          ? "border-red-400 bg-red-50/30"
+                          : "border-slate-200 hover:bg-slate-100/50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        id="hasAlteredMentalStatus"
+                        name="hasAlteredMentalStatus"
+                        checked={hasAlteredMentalStatus}
+                        onChange={(e) => setHasAlteredMentalStatus(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
+                      />
+                      <div>
+                        <span className="text-red-950 font-bold">Reduced Conscious Level / Altered Mental Status</span>
+                        <span className="block text-[11px] text-slate-500 font-normal">
+                          Severe lethargy, stupor, confusion, or unresponsiveness indicating severe neurotoxicity / hypoperfusion
+                        </span>
+                      </div>
+                    </label>
+                  </div>
 
                   {isHighLevelBypass && (
                     <div className="p-2.5 bg-red-100/90 border border-red-300 rounded-lg text-xs text-red-900 font-medium space-y-1 animate-fadeIn">
                       <p className="font-bold flex items-center gap-1.5 text-red-800">
                         <span>⚠️</span>
                         <span>
-                          High-Level Bypass Activated: Direct Routing to Level 2/3 Specialist Centre.
+                          High-Level Bypass Activated: Direct Routing to Level 2/3 Specialist Centre via ALS 4WD Ambulance.
                         </span>
                       </p>
                       <p className="text-[11px] text-red-700">
@@ -1287,6 +1337,7 @@ export default function ActivatePage() {
                             `Pediatric patient (${form.patientAge} ${ageUnit})`,
                           isPregnant && "Pregnancy status (Pregnant)",
                           hasRedFlags && "Airway / respiratory compromise or shock",
+                          hasAlteredMentalStatus && "Reduced conscious level / altered mental status",
                         ]
                           .filter(Boolean)
                           .join(" • ")}
@@ -1296,7 +1347,7 @@ export default function ActivatePage() {
 
                   {!isHighLevelBypass && (
                     <p className="text-[11px] text-slate-500">
-                      Standard routing. If red flags, pediatric age (≤ 16 yrs), or pregnancy are detected, Level 1 clinics are automatically bypassed in favor of Level 2/3 specialist centres.
+                      Standard routing. If red flags, altered mental status, pediatric age (≤ 16 yrs), or pregnancy are detected, Level 1 clinics are automatically bypassed and transport is upgraded to ALS 4WD Ambulance.
                     </p>
                   )}
                 </div>
@@ -1553,17 +1604,31 @@ export default function ActivatePage() {
                       </div>
                     </div>
 
-                    <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-200 text-xs font-medium text-slate-800 cursor-pointer hover:bg-amber-50/50 transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={victim.hasAirwayIssue}
-                        onChange={(e) =>
-                          handleUpdateAdditionalVictim(index, "hasAirwayIssue", e.target.checked)
-                        }
-                        className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
-                      />
-                      <span>Victim {index + 2} Has Airway Compromise / Respiratory Shock</span>
-                    </label>
+                    <div className="space-y-1.5 pt-1">
+                      <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-200 text-xs font-medium text-slate-800 cursor-pointer hover:bg-amber-50/50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={victim.hasAirwayIssue}
+                          onChange={(e) =>
+                            handleUpdateAdditionalVictim(index, "hasAirwayIssue", e.target.checked)
+                          }
+                          className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
+                        />
+                        <span>Victim {index + 2} Has Airway Compromise / Respiratory Shock</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-200 text-xs font-medium text-slate-800 cursor-pointer hover:bg-amber-50/50 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(victim.hasAlteredMentalStatus)}
+                          onChange={(e) =>
+                            handleUpdateAdditionalVictim(index, "hasAlteredMentalStatus", e.target.checked)
+                          }
+                          className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
+                        />
+                        <span>Victim {index + 2} Has Reduced Conscious Level / Altered Mental Status</span>
+                      </label>
+                    </div>
                   </div>
                 ))}
 

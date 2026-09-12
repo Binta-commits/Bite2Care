@@ -38,7 +38,7 @@ export default function PathwayComparison({
           )) ||
           (typeof parsed.age === "string" && (parsed.age.includes("month") || parseFloat(parsed.age) <= 16));
         const isPreg = parsed.pregnancy === "Pregnant" || parsed.pregnancyStatus === "Pregnant";
-        const hasRed = Boolean(parsed.hasRedFlags || parsed.hasAirwayIssue);
+        const hasRed = Boolean(parsed.hasRedFlags || parsed.hasAirwayIssue || parsed.hasAlteredMentalStatus || parsed.hasAlteredConsciousness);
         if (isPed || isPreg || hasRed) {
           setSelectedPathway("direct");
         }
@@ -54,7 +54,7 @@ export default function PathwayComparison({
     )) ||
     (typeof demoData?.age === "string" && (demoData.age.includes("month") || parseFloat(demoData.age) <= 16));
   const isPregnant = demoData?.pregnancy === "Pregnant" || demoData?.pregnancyStatus === "Pregnant";
-  const hasAirwayIssue = Boolean(demoData?.hasRedFlags || demoData?.hasAirwayIssue);
+  const hasAirwayIssue = Boolean(demoData?.hasRedFlags || demoData?.hasAirwayIssue || demoData?.hasAlteredMentalStatus || demoData?.hasAlteredConsciousness);
   const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue;
 
   const handleConfirmMobilization = () => {

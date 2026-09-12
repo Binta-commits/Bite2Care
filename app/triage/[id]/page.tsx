@@ -154,10 +154,12 @@ export default function TriagePage({ params }: TriagePageProps) {
             (parsed.age.includes("month") || parseFloat(parsed.age) <= 16));
 
         const hasAirway = Boolean(parsed.hasAirwayIssue || parsed.hasRedFlags);
+        const hasAltered = Boolean(parsed.hasAlteredMentalStatus || parsed.hasAlteredConsciousness);
 
         setBypass((prev) => ({
           ...prev,
           airwayRespCompromise: hasAirway,
+          alteredConsciousness: hasAltered,
         }));
 
         if (isPed) {
@@ -903,8 +905,8 @@ export default function TriagePage({ params }: TriagePageProps) {
                       className="mt-0.5 w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500"
                     />
                     <span>
-                      <strong>Altered Consciousness / Coma (GCS &le; 8)</strong>
-                      <span className="block text-[11px] text-slate-500">Stupor, coma, or convulsive activity related to severe neurotoxicity</span>
+                      <strong className="text-red-950">Reduced Conscious Level / Altered Mental Status</strong>
+                      <span className="block text-[11px] text-slate-500">Stupor, severe lethargy, confusion, or unresponsiveness indicating progressive neurotoxicity or hypoperfusion</span>
                     </span>
                   </label>
                 </div>

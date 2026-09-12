@@ -38,6 +38,8 @@ export default function ManagePage({ params }: ManagePageProps) {
     pregnancyStatus?: string;
     hasRedFlags?: boolean;
     hasAirwayIssue?: boolean;
+    hasAlteredMentalStatus?: boolean;
+    hasAlteredConsciousness?: boolean;
     initiator?: string;
     healer?: string | null;
     clinicalOutcome?: string;
@@ -84,6 +86,8 @@ export default function ManagePage({ params }: ManagePageProps) {
   const hasAirwayIssue = Boolean(
     demoData?.hasAirwayIssue === true ||
       demoData?.hasRedFlags === true ||
+      demoData?.hasAlteredMentalStatus === true ||
+      demoData?.hasAlteredConsciousness === true ||
       caseRec?.hasAirwayIssue === true ||
       caseRec?.hasRedFlags === true
   );
@@ -96,8 +100,8 @@ export default function ManagePage({ params }: ManagePageProps) {
       (v.ageUnit?.toLowerCase() === "months" ||
         (v.ageUnit?.toLowerCase() === "years" && Number(v.age) <= 16));
     const isVPreg = v.pregnancy === "Yes" || v.pregnancy === "Pregnant";
-    return isVPed || isVPreg || Boolean(v.hasAirwayIssue);
-  }) || Boolean((demoData as any)?.victim2AirwayIssue);
+    return isVPed || isVPreg || Boolean(v.hasAirwayIssue) || Boolean(v.hasAlteredMentalStatus);
+  }) || Boolean((demoData as any)?.victim2AirwayIssue) || Boolean((demoData as any)?.victim2AlteredMentalStatus);
 
   const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue || hasAdditionalVictimBypass;
 

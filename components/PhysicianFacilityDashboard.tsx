@@ -25,6 +25,8 @@ export interface CaseRecord {
   healerVoucherPaid?: boolean;
   hasRedFlags?: boolean;
   hasAirwayIssue?: boolean;
+  hasAlteredMentalStatus?: boolean;
+  hasAlteredConsciousness?: boolean;
   createdAt?: string;
   clinicalAssessments?: any[];
 }
@@ -575,7 +577,13 @@ export default function PhysicianFacilityDashboard({
                       {hasAirway && (
                         <span className="px-2.5 py-0.5 rounded text-[11px] font-black bg-red-600 text-white flex items-center gap-1 shadow-sm">
                           <span>⚠️</span>
-                          <span>Airway / Shock Compromise (ALS Priority)</span>
+                          <span>Airway / Shock / Neuro Compromise (ALS Priority)</span>
+                        </span>
+                      )}
+                      {(c.hasAlteredMentalStatus || c.hasAlteredConsciousness) && !hasAirway && (
+                        <span className="px-2.5 py-0.5 rounded text-[11px] font-black bg-red-600 text-white flex items-center gap-1 shadow-sm">
+                          <span>⚠️</span>
+                          <span>Reduced Conscious Level / Altered Mental Status</span>
                         </span>
                       )}
                       {isPediatric && (
@@ -588,7 +596,7 @@ export default function PhysicianFacilityDashboard({
                           🤰 Pregnant Patient (High Risk)
                         </span>
                       )}
-                      {!hasAirway && !isPediatric && !isPregnant && (
+                      {!hasAirway && !c.hasAlteredMentalStatus && !c.hasAlteredConsciousness && !isPediatric && !isPregnant && (
                         <span className="px-2.5 py-0.5 rounded text-[11px] font-bold bg-slate-200 text-slate-800">
                           Standard Adult Envenomation Protocol
                         </span>
