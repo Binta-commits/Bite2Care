@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { cleanupExpiredCasesAction } from "@/app/actions/cases";
+import { getClientRole } from "@/app/lib/rbac";
+import PhysicianFacilityDashboard from "@/components/PhysicianFacilityDashboard";
 
 interface CaseRecord {
   id: string;
@@ -31,6 +34,9 @@ export default function CaseRegistryPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [cleanupRunning, setCleanupRunning] = useState(false);
+  const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
+  const [currentRole, setCurrentRole] = useState<string>("DISPATCHER");
 
   const fetchCases = async () => {
     try {
@@ -47,8 +53,51 @@ export default function CaseRegistryPage() {
     }
   };
 
+  const handleManualCleanup = async () => {
+    setCleanupRunning(true);
+    setCleanupMessage(null);
+    try {
+      const role = getClientRole();
+      const res = await cleanupExpiredCasesAction(role);
+      if (res.success) {
+        setCleanupMessage(
+          `✓ Cleaned up ${res.deletedCount} expired showcase records (>24h old).`
+        );
+        await fetchCases();
+      } else {
+        setCleanupMessage(`Cleanup notice: ${res.error}`);
+      }
+    } catch (err: any) {
+      setCleanupMessage("Failed to execute cleanup query.");
+    } finally {
+      setCleanupRunning(false);
+    }
+  };
+
   useEffect(() => {
     fetchCases();
+    const activeRole = getClientRole();
+    setCurrentRole(activeRole);
+
+    if (typeof window !== "undefined") {
+      const search = window.location.search;
+      if (search.includes("tab=inpatient") || search.includes("role=physician") || activeRole === "PHYSICIAN") {
+        setStatusFilter("INPATIENT");
+      }
+    }
+
+    const handleRoleChange = () => {
+      const updatedRole = getClientRole();
+      setCurrentRole(updatedRole);
+      if (updatedRole === "PHYSICIAN") {
+        setStatusFilter("INPATIENT");
+      }
+    };
+
+    window.addEventListener("bite2care_role_changed", handleRoleChange);
+    return () => {
+      window.removeEventListener("bite2care_role_changed", handleRoleChange);
+    };
   }, []);
 
   const filteredCases = cases.filter((c) => {
@@ -78,6 +127,18 @@ export default function CaseRegistryPage() {
   const closedCount = cases.filter((c) => c.state === "CLOSED").length;
   const healerReferralsCount = cases.filter((c) => Boolean(c.healerName)).length;
 
+  const isPhysician = currentRole === "PHYSICIAN";
+  const isAdmin = currentRole === "ADMIN";
+
+  // If role is Attending Physician, conditionally render the localized Facility Clinical Dashboard
+  if (isPhysician) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <PhysicianFacilityDashboard cases={cases} onRefresh={fetchCases} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header Banner */}
@@ -86,25 +147,31 @@ export default function CaseRegistryPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-gold-500 text-slate-900">
-                Central Registry
+                {isPhysician ? "Inpatient Clinical Portal" : "Central Registry"}
               </span>
-              <span className="text-xs text-slate-500 font-medium">Emergency Incident Audit &amp; Clinical Archive</span>
+              <span className="text-xs text-slate-500 font-medium">
+                {isPhysician ? "Ward Monitoring & Triage Review" : "Emergency Incident Audit & Clinical Archive"}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              Case History &amp; Dispatch Registry
+              {isPhysician ? "Inpatient Ward & Clinical Registry" : "Case History & Dispatch Registry"}
             </h1>
             <p className="text-sm text-slate-600 mt-1 max-w-2xl">
-              Longitudinal tracking of all snakebite emergency calls, clinical assessments, hospital admissions, and closed-loop community follow-up.
+              {isPhysician
+                ? "Manage admitted snakebite inpatients, track serial 20WBCT clotting timelines, and evaluate in-hospital clinical progress."
+                : "Longitudinal tracking of all snakebite emergency calls, clinical assessments, hospital admissions, and closed-loop community follow-up."}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/activate"
-              className="px-4 py-2.5 bg-brand-teal-800 hover:bg-brand-teal-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center gap-1.5"
-            >
-              <span>➕ Activate New Case</span>
-            </Link>
+            {!isPhysician && (
+              <Link
+                href="/activate"
+                className="px-4 py-2.5 bg-brand-teal-800 hover:bg-brand-teal-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center gap-1.5"
+              >
+                <span>➕ Activate New Case</span>
+              </Link>
+            )}
             <Link
               href="/facilities"
               className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-lg shadow-sm transition-all flex items-center gap-1.5"
@@ -156,6 +223,49 @@ export default function CaseRegistryPage() {
             <span className="text-[10px] text-amber-700">$10 vouchers paid</span>
           </div>
         </div>
+      </div>
+
+      {/* 24-Hour Showcase Environment Archive Lifecycle Banner */}
+      <div className="mb-6 p-4 bg-slate-900 text-white border-2 border-brand-teal-600/80 rounded-2xl shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl mt-0.5 flex-shrink-0">⏱️</span>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-xs sm:text-sm font-extrabold text-brand-gold-400 uppercase tracking-wider">
+                24-Hour Showcase Environment &bull; Automated pg_cron / Vercel Cron Lifecycle
+              </h3>
+              <span className="px-2 py-0.5 bg-brand-teal-800 text-teal-200 rounded text-[10px] font-mono font-bold">
+                DELETE FROM &quot;Case&quot; WHERE &quot;createdAt&quot; &lt; NOW() - INTERVAL &apos;1 day&apos;
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 mt-1">
+              Active showcase emergency cases persist directly to the database for live demonstration and judging, then automatically clear after 24 hours to maintain a pristine test environment.
+            </p>
+            {cleanupMessage && (
+              <p className="text-xs font-bold text-emerald-400 mt-1.5 animate-fadeIn">
+                {cleanupMessage}
+              </p>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleManualCleanup}
+          disabled={cleanupRunning}
+          className="px-4 py-2.5 bg-brand-gold-500 hover:bg-brand-gold-600 disabled:opacity-50 text-slate-900 font-extrabold text-xs rounded-lg shadow-md transition-all flex items-center gap-1.5 whitespace-nowrap self-stretch sm:self-auto justify-center cursor-pointer"
+        >
+          {cleanupRunning ? (
+            <>
+              <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+              <span>Running Cleanup...</span>
+            </>
+          ) : (
+            <>
+              <span>🧹</span>
+              <span>Run 24h Cleanup Now</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* Filter Tabs & Search Bar */}
@@ -223,6 +333,7 @@ export default function CaseRegistryPage() {
             const isPregnant = c.pregnancyStatus === "Pregnant";
             const isHighRisk = isPediatric || isPregnant || Boolean(c.hasRedFlags);
             const state = (c.state || "ACTIVATED").toUpperCase();
+            const isClosed = state === "CLOSED";
 
             return (
               <div
@@ -251,6 +362,13 @@ export default function CaseRegistryPage() {
                     >
                       ● {state.replace("_", " ")}
                     </span>
+
+                    {isClosed && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-emerald-400 border border-emerald-500/40 flex items-center gap-1">
+                        <span>🔒</span>
+                        <span>Locked Audit Record</span>
+                      </span>
+                    )}
 
                     <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                       Channel: {c.channel || "WEB"}
@@ -306,16 +424,20 @@ export default function CaseRegistryPage() {
                 {/* Quick Action Navigation Links */}
                 <div className="flex items-center gap-2 flex-shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
                   <Link
-                    href={`/cases/${c.id}/manage`}
+                    href={`/cases/${c.id}/manage${isClosed ? "?closed=true" : ""}`}
                     className="px-3 py-2 bg-brand-teal-800 hover:bg-brand-teal-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm text-center"
                   >
                     📊 Transport &amp; Flow
                   </Link>
                   <Link
-                    href={`/triage/${c.id}`}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors text-center"
+                    href={`/triage/${c.id}${isClosed ? "?closed=true" : ""}`}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors text-center ${
+                      isClosed
+                        ? "bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-600"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-800"
+                    }`}
                   >
-                    🩺 Doctor Triage
+                    {isClosed ? "🔒 Audit Triage" : "🩺 Doctor Triage"}
                   </Link>
                 </div>
               </div>

@@ -61,8 +61,8 @@ const ADULT_RANKED_OPTIONS: RankedMatchItem[] = [
   {
     score: 95,
     option: {
-      type: "Option B",
-      mode: "Dynamic Treatment Rendezvous (Recommended)",
+      type: "Option A",
+      mode: "Dynamic Treatment Rendezvous (Recommended - Fastest Infusion)",
       destinationFacilityId: "fac-b",
       destinationFacilityName: "Facility B (Primary Healthcare Centre)",
       capabilityLevel: 1,
@@ -81,10 +81,26 @@ const ADULT_RANKED_OPTIONS: RankedMatchItem[] = [
     },
   },
   {
+    score: 86,
+    option: {
+      type: "Option B",
+      mode: "Regional General Hospital Referral (Stabilization Hub & Doctor on Duty)",
+      facilityId: "fac-d",
+      facilityName: "State General Hospital & Emergency Centre",
+      capabilityLevel: 2,
+      hasIcuHdu: true,
+      antivenomStatus: "IN_STOCK",
+      quantity: 8,
+      distanceKm: 42,
+      etaMinutes: 49,
+      staleness: { isStale: false },
+    },
+  },
+  {
     score: 72,
     option: {
-      type: "Option A",
-      mode: "Direct Transit to Stocked Hospital",
+      type: "Option C",
+      mode: "Direct Tertiary Referral (Specialist Hospital & ICU)",
       facilityId: "fac-a",
       facilityName: "Federal Medical Centre (Central Specialist Hospital)",
       capabilityLevel: 3,
@@ -104,7 +120,7 @@ const HIGH_RISK_RANKED_OPTIONS: RankedMatchItem[] = [
     isPediatricRecommended: true,
     option: {
       type: "Option A",
-      mode: "Direct Referral to Level 3 Specialist Centre (High-Risk Protocol)",
+      mode: "Direct Referral to Level 3 Specialist Centre (High-Risk & ICU Protocol)",
       facilityId: "fac-a",
       facilityName: "Federal Medical Centre (Central Specialist Hospital)",
       capabilityLevel: 3,
@@ -117,11 +133,11 @@ const HIGH_RISK_RANKED_OPTIONS: RankedMatchItem[] = [
     },
   },
   {
-    score: 82,
+    score: 85,
     isPediatricRecommended: false,
     option: {
       type: "Option B",
-      mode: "Secondary Referral to Level 2 Regional Hospital",
+      mode: "Secondary Referral to Level 2 Regional Hospital (Rapid Stabilization Hub)",
       facilityId: "fac-d",
       facilityName: "State General Hospital & Emergency Centre",
       capabilityLevel: 2,
@@ -223,9 +239,23 @@ export default function MatchPage({ params }: MatchPageProps) {
   );
   const hasRedFlags = hasAirwayIssue;
 
+  // Check 4: Multi-Victim Cluster Bypass Checks
+  const additionalVictims = (demoData as any)?.additionalVictims || [];
+  const hasAdditionalVictimBypass = additionalVictims.some((v: any) => {
+    const isVPed = isPediatricAge(v.age, v.ageUnit);
+    const isVPreg = v.pregnancy === "Yes" || v.pregnancy === "Pregnant";
+    return isVPed || isVPreg || Boolean(v.hasAirwayIssue);
+  }) || Boolean((demoData as any)?.victim2AirwayIssue);
+
   // Master Trigger: If ANY of these are true, activate the bypass
-  const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue;
+  const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue || hasAdditionalVictimBypass;
   const isHighRisk = isHighLevelBypass;
+
+  const isCaseClosed =
+    caseData?.state === "CLOSED" ||
+    (demoData as any)?.clinicalOutcome === "Discharged Stable" ||
+    (demoData as any)?.state === "CLOSED" ||
+    (typeof window !== "undefined" && window.location.search.includes("closed=true"));
 
   // Matching algorithm strictly filters Level 1 facilities if isHighLevelBypass is true
   const ranked = isHighLevelBypass ? HIGH_RISK_RANKED_OPTIONS : ADULT_RANKED_OPTIONS;
@@ -245,17 +275,34 @@ export default function MatchPage({ params }: MatchPageProps) {
     }, 600);
   };
 
-  // Step 2: Receiving Facility Confirms Acceptance (Zero Prisma DB locks)
+    // Step 2: Receiving Facility Confirms Acceptance (Zero Prisma DB locks)
   const confirmAcceptance = () => {
     if (!awaitingOption) return;
+    const chosenOpt = awaitingOption.option;
     const facilityId =
-      awaitingOption.option.facilityId || awaitingOption.option.destinationFacilityId;
+      chosenOpt.facilityId || chosenOpt.destinationFacilityId;
     const facilityName =
-      awaitingOption.option.facilityName ||
-      awaitingOption.option.destinationFacilityName ||
+      chosenOpt.facilityName ||
+      chosenOpt.destinationFacilityName ||
       "Federal Medical Centre (Central Specialist Hospital)";
 
     setAlertingId(facilityId);
+
+    try {
+      const saved = localStorage.getItem("bite2care_demo_data");
+      const cur = saved ? JSON.parse(saved) : {};
+      localStorage.setItem(
+        "bite2care_demo_data",
+        JSON.stringify({
+          ...cur,
+          selectedFacility: chosenOpt,
+          facilityName,
+          facilityId,
+          capabilityLevel: chosenOpt.capabilityLevel,
+          hasIcuHdu: chosenOpt.hasIcuHdu,
+        })
+      );
+    } catch (e) {}
 
     // 1000ms simulated confirmation timeout
     setTimeout(() => {
@@ -340,6 +387,11 @@ export default function MatchPage({ params }: MatchPageProps) {
             {hasAirwayIssue && (
               <span className="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[11px]">
                 ⚠️ Airway / Shock Red Flag
+              </span>
+            )}
+            {(demoData as any)?.frontlineQuestions && Object.values((demoData as any).frontlineQuestions).some(Boolean) && (
+              <span className="px-2 py-0.5 rounded bg-teal-100 text-teal-900 font-bold text-[11px] border border-teal-300">
+                📋 Frontline Signs ({Object.values((demoData as any).frontlineQuestions).filter(Boolean).length}/7)
               </span>
             )}
             {(demoData as any)?.victimCount > 1 && (
@@ -461,6 +513,29 @@ export default function MatchPage({ params }: MatchPageProps) {
                 {escalating ? "Escalating..." : "⚠️ Escalate Case"}
               </button>
             </div>
+
+            {/* CASE CLOSED & LOCKED AUDIT BANNER */}
+            {isCaseClosed && (
+              <div className="p-4 bg-emerald-950 border-2 border-emerald-500 rounded-xl text-white shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-2xl flex-shrink-0">🔒</span>
+                  <div>
+                    <h4 className="text-sm font-extrabold text-brand-gold-400 uppercase tracking-wider">
+                      CASE CLOSED &amp; LOCKED &bull; READ-ONLY REFERRAL AUDIT
+                    </h4>
+                    <p className="text-xs text-slate-200 mt-0.5">
+                      This emergency case has concluded. Facility routing and rendezvous logs are preserved for clinical review.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href={`/cases/${caseId}/manage?closed=true`}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-bold shrink-0 shadow-sm whitespace-nowrap"
+                >
+                  View Closed Case Record &rarr;
+                </Link>
+              </div>
+            )}
 
             {/* Pediatric & Pregnancy Safety Override Alert Banner */}
             {isHighRisk && (
@@ -685,14 +760,18 @@ export default function MatchPage({ params }: MatchPageProps) {
                       <button
                         type="button"
                         onClick={() => requestAcceptance(r)}
-                        disabled={!!alertingId}
-                        className={`w-full sm:w-auto font-bold py-3 px-6 rounded-lg transition-all shadow-md cursor-pointer text-xs flex items-center justify-center gap-2 ${
-                          isTop
-                            ? "bg-brand-teal-900 hover:bg-brand-teal-800 text-brand-gold-500 border border-brand-gold-500/50"
-                            : "bg-slate-800 hover:bg-slate-700 text-white"
+                        disabled={!!alertingId || isCaseClosed}
+                        className={`w-full sm:w-auto font-bold py-3 px-6 rounded-lg transition-all shadow-md text-xs flex items-center justify-center gap-2 ${
+                          isCaseClosed
+                            ? "bg-slate-200 text-slate-500 border border-slate-300 cursor-not-allowed"
+                            : isTop
+                            ? "bg-brand-teal-900 hover:bg-brand-teal-800 text-brand-gold-500 border border-brand-gold-500/50 cursor-pointer"
+                            : "bg-slate-800 hover:bg-slate-700 text-white cursor-pointer"
                         }`}
                       >
-                        {alertingId === (opt.facilityId || opt.destinationFacilityId) ? (
+                        {isCaseClosed ? (
+                          <span>🔒 Locked (Case Closed)</span>
+                        ) : alertingId === (opt.facilityId || opt.destinationFacilityId) ? (
                           <>
                             <div className="w-3.5 h-3.5 border-2 border-brand-gold-500 border-t-transparent rounded-full animate-spin"></div>
                             <span>Mobilizing Resources...</span>

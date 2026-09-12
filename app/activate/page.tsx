@@ -4,6 +4,18 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PathwayComparison from "@/components/PathwayComparison";
+import { createCaseAction } from "@/app/actions/cases";
+import { getClientRole } from "@/app/lib/rbac";
+import RoleGate from "@/components/RoleGate";
+
+export interface AdditionalVictim {
+  id: string;
+  age: string;
+  ageUnit: string;
+  sex: string;
+  pregnancy: string;
+  hasAirwayIssue: boolean;
+}
 
 // Regional country configurations for scalable localization and cell tower triangulation simulation
 const COUNTRY_CONFIGS: Record<
@@ -73,6 +85,8 @@ const POPULAR_LANDMARKS = [
   "Rice paddy edge, Andheri district, Maharashtra",
 ];
 
+const DRAFT_CACHE_KEY = "bite2care_case_draft";
+
 export default function ActivatePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"web" | "ussd">("web");
@@ -80,6 +94,9 @@ export default function ActivatePage() {
   const [sex, setSex] = useState<string>("Male");
   const [pregnancy, setPregnancy] = useState<string>("N/A (Male Patient)");
   const [hasRedFlags, setHasRedFlags] = useState<boolean>(false);
+
+  // Interrupt Recovery Draft State
+  const [draftRestored, setDraftRestored] = useState<boolean>(false);
 
   // Auto-disable and force pregnancy to N/A for male patients
   useEffect(() => {
@@ -107,22 +124,193 @@ export default function ActivatePage() {
     pregnancyStatus: "N/A (Male Patient)",
   });
 
-  // Multi-Victim Incident State
-  const [victimCount, setVictimCount] = useState<number>(1);
-  const [victim2Age, setVictim2Age] = useState<string>("");
-  const [victim2AgeUnit, setVictim2AgeUnit] = useState<string>("Years");
-  const [victim2Sex, setVictim2Sex] = useState<string>("female");
-  const [victim2Pregnancy, setVictim2Pregnancy] = useState<string>("Not Pregnant");
-  const [victim2AirwayIssue, setVictim2AirwayIssue] = useState<boolean>(false);
+  // Dynamic Multi-Victim Incident Scaling State
+  const [victimCountMode, setVictimCountMode] = useState<number>(1);
+  const [additionalVictims, setAdditionalVictims] = useState<AdditionalVictim[]>([]);
 
-  // Auto-disable and force pregnancy to N/A for victim 2 if male
-  useEffect(() => {
-    if (victim2Sex === "Male" || victim2Sex === "male") {
-      setVictim2Pregnancy("N/A (Male Patient)");
+  // Victim Selection Handler
+  const handleSelectVictimCount = (count: number) => {
+    setVictimCountMode(count);
+    if (count === 1) {
+      setAdditionalVictims([]);
+    } else if (count === 2) {
+      setAdditionalVictims((prev) => {
+        if (prev.length >= 1) return [prev[0]];
+        return [
+          {
+            id: "victim-2",
+            age: "",
+            ageUnit: "Years",
+            sex: "female",
+            pregnancy: "Not Pregnant",
+            hasAirwayIssue: false,
+          },
+        ];
+      });
+    } else if (count >= 3) {
+      setAdditionalVictims((prev) => {
+        const v2 = prev[0] || {
+          id: "victim-2",
+          age: "",
+          ageUnit: "Years",
+          sex: "female",
+          pregnancy: "Not Pregnant",
+          hasAirwayIssue: false,
+        };
+        const v3 = prev[1] || {
+          id: "victim-3",
+          age: "",
+          ageUnit: "Years",
+          sex: "male",
+          pregnancy: "N/A (Male Patient)",
+          hasAirwayIssue: false,
+        };
+        if (prev.length >= 2) return prev;
+        return [v2, v3];
+      });
     }
-  }, [victim2Sex]);
+  };
 
-  // Derived High-Level Clinical Safety Gate state (Victim 1 + Victim 2)
+  const handleAddVictim = () => {
+    const nextNum = additionalVictims.length + 2;
+    setAdditionalVictims((prev) => [
+      ...prev,
+      {
+        id: `victim-${nextNum}-${Date.now().toString(36)}`,
+        age: "",
+        ageUnit: "Years",
+        sex: "male",
+        pregnancy: "N/A (Male Patient)",
+        hasAirwayIssue: false,
+      },
+    ]);
+  };
+
+  const handleRemoveVictim = (index: number) => {
+    setAdditionalVictims((prev) => {
+      const next = prev.filter((_, idx) => idx !== index);
+      if (next.length === 0) {
+        setVictimCountMode(1);
+      } else if (next.length === 1) {
+        setVictimCountMode(2);
+      }
+      return next;
+    });
+  };
+
+  const handleUpdateAdditionalVictim = (
+    index: number,
+    field: keyof AdditionalVictim,
+    value: any
+  ) => {
+    setAdditionalVictims((prev) => {
+      const next = [...prev];
+      const item = { ...next[index], [field]: value };
+      if (field === "sex") {
+        if (value === "male" || value === "Male") {
+          item.pregnancy = "N/A (Male Patient)";
+        } else if (item.pregnancy === "N/A (Male Patient)") {
+          item.pregnancy = "Not Pregnant";
+        }
+      }
+      next[index] = item;
+      return next;
+    });
+  };
+
+  // DATA CACHING & INTERRUPT RECOVERY HOOK: Hydrate on Mount
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem(DRAFT_CACHE_KEY) || localStorage.getItem("draft");
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.form) setForm((prev) => ({ ...prev, ...parsed.form }));
+        if (parsed.ageUnit) setAgeUnit(parsed.ageUnit);
+        if (parsed.sex) setSex(parsed.sex);
+        if (parsed.pregnancy) setPregnancy(parsed.pregnancy);
+        if (parsed.hasRedFlags !== undefined) setHasRedFlags(parsed.hasRedFlags);
+        if (parsed.victimCountMode) setVictimCountMode(parsed.victimCountMode);
+        if (parsed.additionalVictims && Array.isArray(parsed.additionalVictims)) {
+          setAdditionalVictims(parsed.additionalVictims);
+        } else if (parsed.victim2Age) {
+          // Backward compatibility with previous draft schema
+          setAdditionalVictims([
+            {
+              id: "victim-2",
+              age: parsed.victim2Age,
+              ageUnit: parsed.victim2AgeUnit || "Years",
+              sex: parsed.victim2Sex || "female",
+              pregnancy: parsed.victim2Pregnancy || "Not Pregnant",
+              hasAirwayIssue: Boolean(parsed.victim2AirwayIssue),
+            },
+          ]);
+        }
+        setDraftRestored(true);
+      }
+    } catch (e) {}
+  }, []);
+
+  // DATA CACHING: Debounced Auto-save to LocalStorage on every change
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      try {
+        if (!createdCaseId) {
+          const draftPayload = {
+            form,
+            ageUnit,
+            sex,
+            pregnancy,
+            hasRedFlags,
+            victimCountMode,
+            additionalVictims,
+            savedAt: new Date().toISOString(),
+          };
+          localStorage.setItem(DRAFT_CACHE_KEY, JSON.stringify(draftPayload));
+        }
+      } catch (e) {}
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [
+    form,
+    ageUnit,
+    sex,
+    pregnancy,
+    hasRedFlags,
+    victimCountMode,
+    additionalVictims,
+  ]);
+
+  const handleClearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_CACHE_KEY);
+    } catch (e) {}
+    setDraftRestored(false);
+    setForm({
+      country: "Nigeria",
+      initiatorRole: "Remote Dispatcher",
+      referredByHealer: false,
+      healerName: "",
+      location: "",
+      latitude: "",
+      longitude: "",
+      biteTime: getLocalIsoDateTime(),
+      suspectedSnake: "Unknown / Not Identified",
+      customSnake: "",
+      patientAge: "",
+      ageUnit: "Years",
+      anatomicalBiteSite: "Lower Limb",
+      patientSex: "male",
+      pregnancyStatus: "N/A (Male Patient)",
+    });
+    setSex("Male");
+    setPregnancy("N/A (Male Patient)");
+    setHasRedFlags(false);
+    setVictimCountMode(1);
+    setAdditionalVictims([]);
+  };
+
+  // Derived High-Level Clinical Safety Gate state (Victim 1 + All Additional Victims)
   const ageNum = Number(form.patientAge);
   const isPediatric =
     form.patientAge !== "" &&
@@ -131,25 +319,25 @@ export default function ActivatePage() {
       (ageUnit.toLowerCase() === "years" && ageNum <= 16));
   const isPregnant = pregnancy === "Yes" || pregnancy === "Pregnant";
 
-  const v2AgeNum = Number(victim2Age);
-  const isV2Pediatric =
-    victimCount > 1 &&
-    victim2Age !== "" &&
-    !isNaN(v2AgeNum) &&
-    (victim2AgeUnit.toLowerCase() === "months" ||
-      (victim2AgeUnit.toLowerCase() === "years" && v2AgeNum <= 16));
-  const isV2Pregnant =
-    victimCount > 1 &&
-    (victim2Pregnancy === "Yes" || victim2Pregnancy === "Pregnant");
-  const isV2Airway = victimCount > 1 && victim2AirwayIssue;
+  const hasAdditionalVictimBypass = additionalVictims.some((v) => {
+    const vAgeNum = Number(v.age);
+    const isVPed =
+      v.age !== "" &&
+      !isNaN(vAgeNum) &&
+      (v.ageUnit.toLowerCase() === "months" ||
+        (v.ageUnit.toLowerCase() === "years" && vAgeNum <= 16));
+    const isVPreg = v.pregnancy === "Yes" || v.pregnancy === "Pregnant";
+    return isVPed || isVPreg || Boolean(v.hasAirwayIssue);
+  });
 
   const isHighLevelBypass =
     isPediatric ||
     isPregnant ||
     hasRedFlags ||
-    isV2Pediatric ||
-    isV2Pregnant ||
-    isV2Airway;
+    hasAdditionalVictimBypass;
+
+  const totalVictims = 1 + additionalVictims.length;
+  const requiredVials = totalVictims > 1 ? totalVictims * 6 : 6;
 
   // Simulated Telecom Network Geolocation State
   const [fetchingLoc, setFetchingLoc] = useState(false);
@@ -368,13 +556,14 @@ export default function ActivatePage() {
         anatomicalBiteSite: form.anatomicalBiteSite,
         initiator: form.initiatorRole,
         healer: healerValue,
-        victimCount,
-        victim2Age,
-        victim2AgeUnit,
-        victim2Sex,
-        victim2Pregnancy,
-        victim2AirwayIssue,
-        requiredVials: victimCount > 1 ? 12 : 6,
+        victimCount: totalVictims,
+        additionalVictims: additionalVictims,
+        victim2Age: additionalVictims[0]?.age || "",
+        victim2AgeUnit: additionalVictims[0]?.ageUnit || "Years",
+        victim2Sex: additionalVictims[0]?.sex || "female",
+        victim2Pregnancy: additionalVictims[0]?.pregnancy || "Not Pregnant",
+        victim2AirwayIssue: Boolean(additionalVictims[0]?.hasAirwayIssue),
+        requiredVials: requiredVials,
       };
 
       console.log("Data saved:", finalPayload);
@@ -382,14 +571,76 @@ export default function ActivatePage() {
         localStorage.setItem("bite2care_demo_data", JSON.stringify(finalPayload));
       } catch (e) {}
 
-      const res = await fetch("/api/cases", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
+      // Execute Next.js Server Action with Prisma Database Mutation
+      const currentRole = getClientRole();
+      let newCaseId: string | null = null;
+      try {
+        const serverActionResult = await createCaseAction(
+          {
+            location: formattedLocation,
+            latitude: form.latitude ? Number(form.latitude) : undefined,
+            longitude: form.longitude ? Number(form.longitude) : undefined,
+            biteTime: form.biteTime,
+            suspectedSnake: effectiveSnake,
+            patientAge: form.patientAge ? Number(form.patientAge) : undefined,
+            patientSex: sex || form.patientSex,
+            pregnancyStatus: pregnancy,
+            channel: "WEB",
+            initiatorRole: form.initiatorRole,
+            healerName: healerValue,
+            hasRedFlags: hasRedFlags,
+            hasAirwayIssue: hasRedFlags,
+          },
+          currentRole
+        );
+        if (serverActionResult?.success && serverActionResult?.caseId) {
+          newCaseId = serverActionResult.caseId;
+        }
+      } catch (saErr) {
+        console.warn("Server action fallback to API route:", saErr);
+      }
 
-      const newCaseId = json.caseId || json.id || `CASE-${Date.now().toString(36).toUpperCase()}`;
+      if (!newCaseId) {
+        const res = await fetch("/api/cases", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        newCaseId = json.caseId || json.id || `CASE-${Date.now().toString(36).toUpperCase()}`;
+      }
+
+      // Cleanup Draft Cache strictly upon confirmed server success and reset form
+      try {
+        localStorage.removeItem(DRAFT_CACHE_KEY);
+        localStorage.removeItem("draft");
+      } catch (e) {}
+      setDraftRestored(false);
+
+      // Reset form fields to clean state
+      setForm({
+        country: form.country,
+        initiatorRole: form.initiatorRole,
+        referredByHealer: false,
+        healerName: "",
+        location: "",
+        latitude: "",
+        longitude: "",
+        biteTime: getLocalIsoDateTime(),
+        suspectedSnake: "Unknown / Not Identified",
+        customSnake: "",
+        patientAge: "",
+        ageUnit: "Years",
+        anatomicalBiteSite: "Lower Limb",
+        patientSex: "male",
+        pregnancyStatus: "N/A (Male Patient)",
+      });
+      setSex("Male");
+      setPregnancy("N/A (Male Patient)");
+      setHasRedFlags(false);
+      setVictimCountMode(1);
+      setAdditionalVictims([]);
+
       setCreatedCaseId(newCaseId);
       setCreatedChannel("WEB");
       setErrors({});
@@ -429,13 +680,14 @@ export default function ActivatePage() {
           anatomicalBiteSite: form.anatomicalBiteSite,
           initiator: form.initiatorRole,
           healer: healerValue,
-          victimCount,
-          victim2Age,
-          victim2AgeUnit,
-          victim2Sex,
-          victim2Pregnancy,
-          victim2AirwayIssue,
-          requiredVials: victimCount > 1 ? 12 : 6,
+          victimCount: totalVictims,
+          additionalVictims: additionalVictims,
+          victim2Age: additionalVictims[0]?.age || "",
+          victim2AgeUnit: additionalVictims[0]?.ageUnit || "Years",
+          victim2Sex: additionalVictims[0]?.sex || "female",
+          victim2Pregnancy: additionalVictims[0]?.pregnancy || "Not Pregnant",
+          victim2AirwayIssue: Boolean(additionalVictims[0]?.hasAirwayIssue),
+          requiredVials: requiredVials,
         };
 
         console.log("Data saved:", finalPayload);
@@ -444,6 +696,36 @@ export default function ActivatePage() {
 
       // Seamless presentation fallback to prevent blocking
       const fallbackId = `CASE-${Date.now().toString(36).toUpperCase()}`;
+      try {
+        localStorage.removeItem(DRAFT_CACHE_KEY);
+        localStorage.removeItem("draft");
+      } catch (e) {}
+      setDraftRestored(false);
+
+      // Reset form fields to clean state
+      setForm({
+        country: form.country,
+        initiatorRole: form.initiatorRole,
+        referredByHealer: false,
+        healerName: "",
+        location: "",
+        latitude: "",
+        longitude: "",
+        biteTime: getLocalIsoDateTime(),
+        suspectedSnake: "Unknown / Not Identified",
+        customSnake: "",
+        patientAge: "",
+        ageUnit: "Years",
+        anatomicalBiteSite: "Lower Limb",
+        patientSex: "male",
+        pregnancyStatus: "N/A (Male Patient)",
+      });
+      setSex("Male");
+      setPregnancy("N/A (Male Patient)");
+      setHasRedFlags(false);
+      setVictimCountMode(1);
+      setAdditionalVictims([]);
+
       setCreatedCaseId(fallbackId);
       setCreatedChannel("WEB");
       setErrors({});
@@ -525,9 +807,14 @@ export default function ActivatePage() {
     COUNTRY_CONFIGS[form.country] || COUNTRY_CONFIGS.Nigeria;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6">
-      <div className="bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-200 mt-4">
-        {/* VIEW 1: PATHWAY COMPARISON ENGINE (Renders immediately after case activation) */}
+    <RoleGate
+      allowedRoles={["DISPATCHER", "ADMIN"]}
+      title="Dispatch Operations Barrier: Dispatcher Access Required"
+      description="Attending clinicians and hospital medical staff are restricted from pre-hospital emergency intake dispatch. Intake operations are handled by Central Emergency Dispatchers and Regional System Administrators."
+    >
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        <div className="bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-200 mt-4">
+          {/* VIEW 1: PATHWAY COMPARISON ENGINE (Renders immediately after case activation) */}
         {createdCaseId ? (
           <PathwayComparison
             caseId={createdCaseId}
@@ -585,6 +872,30 @@ export default function ActivatePage() {
                 </button>
               </div>
             </div>
+
+            {/* INTERRUPT RECOVERY / CACHED DRAFT NOTIFICATION BANNER */}
+            {draftRestored && activeTab === "web" && (
+              <div className="mb-5 p-3.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between gap-3 text-xs text-blue-900 shadow-sm animate-fadeIn">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-base flex-shrink-0">⚡</span>
+                  <div>
+                    <strong className="block font-bold text-blue-950">
+                      Active Dispatch Draft Restored
+                    </strong>
+                    <span className="text-[11px] text-blue-800">
+                      Auto-recovered unsubmitted dispatch details from your local session cache.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearDraft}
+                  className="px-2.5 py-1 text-[11px] font-bold text-red-600 hover:text-red-800 hover:bg-red-50 rounded border border-red-200 transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  Clear Draft
+                </button>
+              </div>
+            )}
 
             {/* TAB 1: WEB FORM */}
             {activeTab === "web" && (
@@ -998,13 +1309,13 @@ export default function ActivatePage() {
                     </label>
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                        victimCount > 1
+                        totalVictims > 1
                           ? "bg-amber-600 text-white"
                           : "bg-slate-200 text-slate-700"
                       }`}
                     >
-                      {victimCount > 1
-                        ? "MULTI-VICTIM CLUSTER (12 VIALS DEMAND)"
+                      {totalVictims > 1
+                        ? `MULTI-VICTIM CLUSTER (${requiredVials} VIALS DEMAND)`
                         : "SINGLE VICTIM"}
                     </span>
                   </div>
@@ -1017,9 +1328,9 @@ export default function ActivatePage() {
                       <button
                         key={btn.count}
                         type="button"
-                        onClick={() => setVictimCount(btn.count)}
+                        onClick={() => handleSelectVictimCount(btn.count)}
                         className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
-                          victimCount === btn.count
+                          victimCountMode === btn.count
                             ? "bg-brand-teal-800 text-white border-brand-teal-900 shadow-sm"
                             : "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
                         }`}
@@ -1028,9 +1339,9 @@ export default function ActivatePage() {
                       </button>
                     ))}
                   </div>
-                  {victimCount > 1 && (
+                  {totalVictims > 1 && (
                     <p className="text-[11px] text-amber-800 font-medium pt-1">
-                      ⚠️ Multi-victim protocol active: Doubling initial antivenom requirement (≥12 vials). Transport prioritized for dual patient capacity.
+                      ⚠️ Multi-victim protocol active: Scaling antivenom requirement ({requiredVials} vials total for {totalVictims} patients). Transport prioritized for multiple patient capacity.
                     </p>
                   )}
                 </div>
@@ -1039,7 +1350,7 @@ export default function ActivatePage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                      {victimCount > 1 ? "Patient #1 (Primary Victim)" : "Patient Demographics"}
+                      {totalVictims > 1 ? "Patient #1 (Primary Victim)" : "Patient Demographics"}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1143,40 +1454,58 @@ export default function ActivatePage() {
                 </div>
               </div>
 
-                {/* Victim 2 Demographics Card (When Multi-Victim Cluster Incident is Active) */}
-                {victimCount > 1 && (
-                  <div className="p-4 bg-amber-50/80 border-2 border-amber-300 rounded-xl space-y-3 animate-fadeIn">
+                {/* Additional Victims Cards (When Multi-Victim Cluster Incident is Active) */}
+                {additionalVictims.map((victim, index) => (
+                  <div
+                    key={victim.id}
+                    className="p-4 bg-amber-50/80 border-2 border-amber-300 rounded-xl space-y-3 animate-fadeIn"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-amber-950 uppercase tracking-wider">
-                          👥 Patient #2 (Secondary Victim)
+                          👥 Patient #{index + 2} ({index === 0 ? "Secondary Victim" : `Victim ${index + 2}`})
                         </span>
                         <span className="text-[10px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded">
-                          Cluster Incident
+                          Incident Victim #{index + 2}
                         </span>
                       </div>
-                      <span className="text-[11px] font-bold text-amber-800">
-                        +6 Vials Calculated
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] font-bold text-amber-800">
+                          +6 Vials Calculated
+                        </span>
+                        {additionalVictims.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveVictim(index)}
+                            className="text-[11px] text-red-600 hover:text-red-800 hover:underline font-bold cursor-pointer"
+                          >
+                            ✕ Remove
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="block text-xs font-semibold text-slate-800 mb-1">
-                          Victim 2 Age
+                          Victim {index + 2} Age
                         </label>
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
                             min="0"
                             placeholder="e.g. 10"
-                            value={victim2Age}
-                            onChange={(e) => setVictim2Age(e.target.value)}
+                            value={victim.age}
+                            onChange={(e) =>
+                              handleUpdateAdditionalVictim(index, "age", e.target.value)
+                            }
                             className="flex-1 border border-slate-300 rounded-md p-2.5 bg-white text-xs text-slate-900 font-medium focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
                           />
                           <select
-                            value={victim2AgeUnit}
-                            onChange={(e) => setVictim2AgeUnit(e.target.value)}
+                            value={victim.ageUnit}
+                            onChange={(e) =>
+                              handleUpdateAdditionalVictim(index, "ageUnit", e.target.value)
+                            }
                             className="w-20 border border-slate-300 rounded-md p-2.5 bg-slate-50 text-xs font-semibold"
                           >
                             <option value="Years">Years</option>
@@ -1187,11 +1516,13 @@ export default function ActivatePage() {
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-800 mb-1">
-                          Victim 2 Sex
+                          Victim {index + 2} Sex
                         </label>
                         <select
-                          value={victim2Sex}
-                          onChange={(e) => setVictim2Sex(e.target.value)}
+                          value={victim.sex}
+                          onChange={(e) =>
+                            handleUpdateAdditionalVictim(index, "sex", e.target.value)
+                          }
                           className="w-full border border-slate-300 rounded-md p-2.5 bg-white text-xs text-slate-900 font-medium focus:ring-2 focus:ring-brand-teal-700 focus:outline-none"
                         >
                           <option value="female">Female</option>
@@ -1201,14 +1532,16 @@ export default function ActivatePage() {
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-800 mb-1">
-                          Victim 2 Pregnancy
+                          Victim {index + 2} Pregnancy
                         </label>
                         <select
-                          value={victim2Pregnancy}
-                          onChange={(e) => setVictim2Pregnancy(e.target.value)}
-                          disabled={victim2Sex === "male" || victim2Sex === "Male"}
+                          value={victim.pregnancy}
+                          onChange={(e) =>
+                            handleUpdateAdditionalVictim(index, "pregnancy", e.target.value)
+                          }
+                          disabled={victim.sex === "male" || victim.sex === "Male"}
                           className={`w-full border border-slate-300 rounded-md p-2.5 text-xs font-medium focus:ring-2 focus:ring-brand-teal-700 focus:outline-none ${
-                            victim2Sex === "male" || victim2Sex === "Male"
+                            victim.sex === "male" || victim.sex === "Male"
                               ? "bg-slate-100 text-slate-400 cursor-not-allowed"
                               : "bg-white text-slate-900"
                           }`}
@@ -1223,12 +1556,27 @@ export default function ActivatePage() {
                     <label className="flex items-center gap-2 p-2 bg-white rounded-lg border border-amber-200 text-xs font-medium text-slate-800 cursor-pointer hover:bg-amber-50/50 transition-colors">
                       <input
                         type="checkbox"
-                        checked={victim2AirwayIssue}
-                        onChange={(e) => setVictim2AirwayIssue(e.target.checked)}
+                        checked={victim.hasAirwayIssue}
+                        onChange={(e) =>
+                          handleUpdateAdditionalVictim(index, "hasAirwayIssue", e.target.checked)
+                        }
                         className="w-4 h-4 text-red-600 rounded border-slate-300 focus:ring-red-500 cursor-pointer"
                       />
-                      <span>Victim 2 Has Airway Compromise / Respiratory Shock</span>
+                      <span>Victim {index + 2} Has Airway Compromise / Respiratory Shock</span>
                     </label>
+                  </div>
+                ))}
+
+                {victimCountMode >= 3 && (
+                  <div className="flex justify-center pt-1">
+                    <button
+                      type="button"
+                      onClick={handleAddVictim}
+                      className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <span>➕</span>
+                      <span>Add Another Victim to Mass Incident (Patient #{additionalVictims.length + 2})</span>
+                    </button>
                   </div>
                 )}
 
@@ -1346,5 +1694,6 @@ export default function ActivatePage() {
         )}
       </div>
     </div>
+    </RoleGate>
   );
 }

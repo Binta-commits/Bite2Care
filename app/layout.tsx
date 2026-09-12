@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import NavbarNav from "@/components/NavbarNav";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,26 +38,7 @@ export default function RootLayout({
                 </span>
               </div>
             </Link>
-            <nav className="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm font-medium text-slate-200">
-              <Link
-                href="/activate"
-                className="hover:text-brand-gold-500 transition-colors"
-              >
-                🚨 Activate Case
-              </Link>
-              <Link
-                href="/cases"
-                className="hover:text-brand-gold-500 transition-colors"
-              >
-                📋 Case Archive
-              </Link>
-              <Link
-                href="/facilities"
-                className="hover:text-brand-gold-500 transition-colors"
-              >
-                🏥 Facility Grid
-              </Link>
-            </nav>
+            <NavbarNav />
           </div>
         </header>
         <main className="flex-1 pb-16">{children}</main>

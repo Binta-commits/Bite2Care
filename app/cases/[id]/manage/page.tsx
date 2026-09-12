@@ -87,7 +87,79 @@ export default function ManagePage({ params }: ManagePageProps) {
       caseRec?.hasAirwayIssue === true ||
       caseRec?.hasRedFlags === true
   );
-  const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue;
+
+  const additionalVictims = (demoData as any)?.additionalVictims || [];
+  const hasAdditionalVictimBypass = additionalVictims.some((v: any) => {
+    const isVPed =
+      v.age !== "" &&
+      !isNaN(Number(v.age)) &&
+      (v.ageUnit?.toLowerCase() === "months" ||
+        (v.ageUnit?.toLowerCase() === "years" && Number(v.age) <= 16));
+    const isVPreg = v.pregnancy === "Yes" || v.pregnancy === "Pregnant";
+    return isVPed || isVPreg || Boolean(v.hasAirwayIssue);
+  }) || Boolean((demoData as any)?.victim2AirwayIssue);
+
+  const isHighLevelBypass = isPediatric || isPregnant || hasAirwayIssue || hasAdditionalVictimBypass;
+
+  // Inter-Facility Clinical Escalation State
+  const [interFacilityEscalated, setInterFacilityEscalated] = useState(false);
+
+  // Dynamic Selected Facility Info
+  const selectedFacility = (demoData as any)?.selectedFacility;
+  const facilityLevel: number =
+    interFacilityEscalated
+      ? 3
+      : selectedFacility?.capabilityLevel ||
+        (isHighLevelBypass ? 3 : 1);
+  const facilityName: string =
+    interFacilityEscalated
+      ? "Federal Medical Centre (Central Specialist Hospital) [Escalated Tertiary]"
+      : (demoData as any)?.facilityName ||
+        selectedFacility?.facilityName ||
+        selectedFacility?.destinationFacilityName ||
+        (isHighLevelBypass
+          ? "Federal Medical Centre (Central Specialist Hospital)"
+          : "Facility B (Primary Healthcare Centre)");
+
+  // Dynamic Multi-Tier Transport Resource Allocation
+  const isMultiVictim = Boolean((demoData as any)?.victimCount > 1);
+  const isAlsAmbulance = isHighLevelBypass || facilityLevel >= 2 || interFacilityEscalated;
+
+  const transportConfig = isMultiVictim
+    ? {
+        type: "DUAL_FLEET",
+        name: "Dual Emergency Fleet (#02 ALS Ambulance + #04 Keke)",
+        leadDriver: "Tunde Bakare & Musa Ibrahim",
+        paramedic: "Sister Grace Ogwuche (Lead Paramedic)",
+        phone: "+234 803 555 7890",
+        plate: "NAS-442-AMB / KFF-123-XY",
+        vehicleType: "4WD ALS Ambulance + Secondary Carrier",
+        equipment: "Continuous O2, 2x Pulse Oximeters, Suction Unit & 12 Antivenom Vials Capacity",
+        costModel: "Project-Supported (Emergency Free to Patient)",
+      }
+    : isAlsAmbulance
+    ? {
+        type: "ALS_AMBULANCE",
+        name: "District Emergency Ambulance #02 (ALS 4WD)",
+        leadDriver: "Tunde Bakare",
+        paramedic: "Sister Grace Ogwuche (Emergency Nurse/Paramedic)",
+        phone: "+234 803 555 7890",
+        plate: "NAS-442-AMB (4WD LandCruiser)",
+        vehicleType: "District ALS 4WD Ambulance (Oxygen & Monitor Equipped)",
+        equipment: "Continuous O2, Pulse Oximeter, Suction Unit & Bag-Valve-Mask Kit",
+        costModel: "Project-Supported (Emergency Free to Patient)",
+      }
+    : {
+        type: "KEKE_RENDEZVOUS",
+        name: "Musa Ibrahim (Keke Ambulance #04) + Courier Aliyu (#09)",
+        leadDriver: "Musa Ibrahim",
+        paramedic: "CHEW Community First Responder",
+        phone: "+234 801 234 5678",
+        plate: "KFF-123-XY (Retrofitted Tricycle)",
+        vehicleType: "Retrofitted Keke Ambulance + Hub C Motorcycle Stock Courier",
+        equipment: "First Aid Kit, Stretcher, Splints + Cold-Chain Vaccine Carrier via Courier",
+        costModel: "Project-Supported (Emergency Free to Patient)",
+      };
 
   // Outcome Form State (used when ARRIVED)
   const [vialsAdministered, setVialsAdministered] = useState<number>(2);
@@ -547,17 +619,16 @@ export default function ManagePage({ params }: ManagePageProps) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Receiving Facility:</span>
                 <span className="font-bold text-brand-teal-900">
-                  {caseRec?.facilityName ||
-                    (isHighLevelBypass
-                      ? "Federal Medical Centre (Central Specialist Hospital)"
-                      : "Facility B (Primary Healthcare Centre)")}
+                  {facilityName}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Facility Level:</span>
                 <span className="font-semibold text-slate-900">
-                  {isHighLevelBypass
-                    ? "Level 3 Specialist Centre (ICU & Antivenom Ready)"
+                  {facilityLevel === 3
+                    ? "Level 3 Specialist Centre (ICU & Dialysis Ready)"
+                    : facilityLevel === 2
+                    ? "Level 2 General Hospital (Doctor & Blood Bank Ready)"
                     : "Level 1 PHC (Basic Emergency Ready)"}
                 </span>
               </div>
@@ -565,23 +636,45 @@ export default function ManagePage({ params }: ManagePageProps) {
                 <span className="text-slate-500">Transport:</span>
                 <span className={`font-semibold ${dispatchSuccess ? "text-emerald-700 font-bold" : "text-slate-900"}`}>
                   {dispatchSuccess
-                    ? "Musa Ibrahim (Keke Ambulance #04)"
-                    : caseRec.transportProviderId
-                    ? "Mapped Vehicle"
+                    ? transportConfig.name
+                    : caseRec?.transportProviderId
+                    ? transportConfig.name
                     : "Pending Dispatch"}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Stock Convergence:</span>
                 <span className="font-semibold text-brand-teal-800">
-                  {isHighLevelBypass
+                  {facilityLevel === 3
                     ? "On-site Verified Stock (14 Vials in Central Pharmacy)"
+                    : facilityLevel === 2
+                    ? "On-site Stock (8 Vials in Emergency Reserve)"
                     : "Hub C Priority Motorcycle in Transit (ETA 38m)"}
                 </span>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Inter-Facility Escalation Banner */}
+        {interFacilityEscalated && (
+          <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-400 rounded-xl text-xs text-amber-950 flex items-center justify-between gap-3 shadow-sm animate-fadeIn">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">🚨</span>
+              <div>
+                <span className="font-bold block uppercase tracking-wide text-amber-900">
+                  Inter-Facility Clinical Escalation Active
+                </span>
+                <span>
+                  Patient escalated from Level {facilityLevel === 3 ? "2" : "1"} to <strong>Federal Medical Centre (Level 3 Specialist Centre)</strong>. Advanced 4WD ALS Ambulance with continuous oxygen dispatched for secondary transfer.
+                </span>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 bg-amber-600 text-white font-bold rounded text-[10px] uppercase whitespace-nowrap">
+              Tertiary Transfer
+            </span>
+          </div>
+        )}
 
         {/* Dynamic Action Panel Based on State */}
         <div className="border-t border-slate-200 pt-6">
@@ -593,7 +686,7 @@ export default function ManagePage({ params }: ManagePageProps) {
           {(!dispatchSuccess && (effectiveState === "ACCEPTED" || effectiveState === "ACTIVATED" || effectiveState === "MATCHING")) && (
             <div className="space-y-3">
               <p className="text-xs text-slate-600">
-                Facility B has acknowledged the pre-arrival alert. Activate nearest mapped emergency transport provider to pick up the victim.
+                {facilityName} has acknowledged the pre-arrival alert. Activate nearest mapped emergency transport provider to pick up the victim.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
@@ -605,10 +698,10 @@ export default function ManagePage({ params }: ManagePageProps) {
                   {isDispatching ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>🛰️ Pinging Local Transport Network...</span>
+                      <span>🛰️ Pinging {transportConfig.name}...</span>
                     </>
                   ) : (
-                    <span>🚑 Coordinate &amp; Assign Mapped Transport</span>
+                    <span>🚑 Coordinate &amp; Assign Transport ({transportConfig.name.split("(")[0].trim()})</span>
                   )}
                 </button>
               </div>
@@ -627,38 +720,44 @@ export default function ManagePage({ params }: ManagePageProps) {
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-emerald-600 animate-pulse"></span>
                     <h4 className="text-sm font-bold text-emerald-950">
-                      🚑 Transport Assigned &amp; En Route
+                      🚑 {transportConfig.name} &bull; Assigned &amp; En Route
                     </h4>
                   </div>
                   <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold bg-emerald-700 text-white uppercase shadow-sm">
-                    EN_ROUTE &bull; ETA 8 MINS
+                    EN_ROUTE &bull; ETA {isAlsAmbulance ? "12 MINS" : "8 MINS"}
                   </span>
                 </div>
 
                 {/* 4-Field Driver & Vehicle Grid + Cost Model */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-800 bg-white p-3.5 rounded-lg border border-emerald-200 shadow-sm">
                   <div className="flex items-center justify-between sm:justify-start sm:gap-2">
-                    <span className="text-slate-500 font-semibold">Driver:</span>
-                    <span className="font-bold text-slate-900">Musa Ibrahim</span>
+                    <span className="text-slate-500 font-semibold">Lead Crew:</span>
+                    <span className="font-bold text-slate-900">{transportConfig.leadDriver} ({transportConfig.paramedic})</span>
                   </div>
                   <div className="flex items-center justify-between sm:justify-start sm:gap-2">
-                    <span className="text-slate-500 font-semibold">Phone:</span>
-                    <span className="font-mono font-bold text-emerald-800">+234 801 234 5678</span>
+                    <span className="text-slate-500 font-semibold">Emergency Phone:</span>
+                    <span className="font-mono font-bold text-emerald-800">{transportConfig.phone}</span>
                   </div>
                   <div className="flex items-center justify-between sm:justify-start sm:gap-2">
-                    <span className="text-slate-500 font-semibold">Vehicle:</span>
-                    <span className="font-bold text-slate-900">Keke Ambulance (Retrofitted)</span>
+                    <span className="text-slate-500 font-semibold">Vehicle Type:</span>
+                    <span className="font-bold text-slate-900">{transportConfig.vehicleType}</span>
                   </div>
                   <div className="flex items-center justify-between sm:justify-start sm:gap-2">
-                    <span className="text-slate-500 font-semibold">Plate:</span>
+                    <span className="text-slate-500 font-semibold">Plate Number:</span>
                     <span className="font-mono font-bold text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-300">
-                      KFF-123-XY
+                      {transportConfig.plate}
                     </span>
                   </div>
                   <div className="flex items-center justify-between sm:justify-start sm:gap-2 sm:col-span-2 pt-2 border-t border-emerald-100">
+                    <span className="text-slate-500 font-semibold">Equipment / Capacity:</span>
+                    <span className="font-medium text-slate-800">
+                      {transportConfig.equipment}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-start sm:gap-2 sm:col-span-2 pt-1">
                     <span className="text-slate-500 font-semibold">Cost Model:</span>
                     <span className="font-bold text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded text-[11px]">
-                      ✓ Project-Supported (Free to Patient)
+                      ✓ {transportConfig.costModel}
                     </span>
                   </div>
                 </div>
@@ -677,18 +776,18 @@ export default function ManagePage({ params }: ManagePageProps) {
                     {callingDriver ? (
                       <>
                         <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Connecting to Driver Musa (+234 801 234 5678)...</span>
+                        <span>Connecting to {transportConfig.leadDriver} ({transportConfig.phone})...</span>
                       </>
                     ) : (
                       <>
                         <span>📞</span>
-                        <span>Call Driver (+234 801 234 5678)</span>
+                        <span>Call Ambulance Driver ({transportConfig.phone})</span>
                       </>
                     )}
                   </button>
                   {callingDriver && (
                     <span className="text-xs text-emerald-800 font-semibold animate-pulse">
-                      Simulating encrypted VoIP dispatch call...
+                      Simulating encrypted emergency dispatch call...
                     </span>
                   )}
                 </div>
@@ -703,13 +802,15 @@ export default function ManagePage({ params }: ManagePageProps) {
                   <span>🏥 Switch to Doctor&apos;s Portal &rarr;</span>
                 </Link>
 
-                {/* Secondary Red Escalation Button (Point 3) */}
+                {/* Inter-Facility Referral / Escalation Button */}
                 <button
                   type="button"
-                  onClick={() => alert("Escalation protocol activated: Pinging secondary transport network.")}
+                  onClick={() => {
+                    setInterFacilityEscalated(true);
+                  }}
                   className="w-full bg-white hover:bg-red-50 text-red-700 border border-red-300 hover:border-red-400 font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>⚠️ Transport Unavailable / Escalate Case</span>
+                  <span>⚠️ Inter-Facility Escalation (Escalate to Level 3 FMC)</span>
                 </button>
               </div>
             </div>
@@ -797,18 +898,76 @@ export default function ManagePage({ params }: ManagePageProps) {
             </div>
           )}
 
-          {/* STATE: CLOSED */}
+          {/* STATE: CLOSED - IMMUTABLE AUDIT LOG & LOCKED INTERFACE */}
           {effectiveState === "CLOSED" && (
-            <div className="flex items-center justify-between p-4 bg-brand-teal-50 rounded-lg border border-brand-teal-200">
-              <span className="text-xs text-brand-teal-900 font-medium">
-                This emergency episode is closed and archived for audit.
-              </span>
-              <Link
-                href="/activate"
-                className="px-4 py-2 bg-brand-teal-800 text-white rounded text-xs font-semibold hover:bg-brand-teal-700 transition-colors shadow-sm"
-              >
-                Activate New Case
-              </Link>
+            <div className="p-6 bg-slate-900 text-white rounded-2xl border-2 border-emerald-500 shadow-xl space-y-4 animate-fadeIn">
+              <div className="flex items-center justify-between border-b border-slate-700 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🔒</span>
+                  <div>
+                    <h4 className="text-sm font-extrabold text-brand-gold-400 uppercase tracking-wider">
+                      IMMUTABLE MEDICAL RECORD &bull; CASE OFFICIALLY CLOSED
+                    </h4>
+                    <span className="text-xs text-slate-300">
+                      This emergency episode is closed. All entries, clinical scores, and antivenom authorizations are permanently locked for audit.
+                    </span>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 bg-emerald-700 text-white rounded font-mono text-[10px] font-bold uppercase tracking-wider">
+                  LOCKED_AUDIT
+                </span>
+              </div>
+
+              {/* Plain-text Read-Only Values */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-800/80 p-4 rounded-xl border border-slate-700 text-xs">
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Antivenom Administered:</span>
+                  <span className="font-bold text-brand-gold-400 text-sm">
+                    {caseRec?.vialsAdministered || vialsAdministered || 6} Vials Infused
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Final Clinical Outcome:</span>
+                  <span className="font-bold text-emerald-400 text-sm">
+                    {caseRec?.clinicalOutcome || clinicalOutcome || "DISCHARGED_STABLE"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Record Retention:</span>
+                  <span className="font-bold text-blue-300 text-sm">
+                    24-Hour Showcase Archive
+                  </span>
+                </div>
+                <div className="sm:col-span-3 pt-2 border-t border-slate-700">
+                  <span className="text-slate-400 block text-[11px]">Attending Physician Handover Summary:</span>
+                  <p className="text-slate-200 italic mt-0.5">
+                    &quot;{caseRec?.outcomeNotes || outcomeNotes || "Patient completed full clinical course. Vital signs stabilized, 20WBCT normalized at 18h. Day 7 CSC wound follow-up scheduled."}&quot;
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+                <Link
+                  href="/cases"
+                  className="text-xs text-slate-300 hover:text-white flex items-center gap-1 font-semibold"
+                >
+                  &larr; Return to Case Registry Archive
+                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/triage/${caseId}?closed=true`}
+                    className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold border border-slate-600 transition-colors"
+                  >
+                    🩺 View Read-Only Clinical Triage
+                  </Link>
+                  <Link
+                    href="/activate"
+                    className="px-4 py-2 bg-brand-gold-500 hover:bg-brand-gold-600 text-slate-900 rounded-lg text-xs font-bold transition-all shadow-md"
+                  >
+                    ➕ Activate New Case
+                  </Link>
+                </div>
+              </div>
             </div>
           )}
         </div>
